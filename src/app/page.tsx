@@ -12,7 +12,9 @@ export default function DashboardPage() {
     <div className="max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Daily Dashboard</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            {data.profile?.name ? `Hey ${data.profile.name}` : 'Daily Dashboard'}
+          </h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm">Track your goals and rate your day</p>
         </div>
         <RAGLegend />

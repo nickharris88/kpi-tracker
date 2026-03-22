@@ -1,5 +1,15 @@
 export type RAGStatus = 'red' | 'amber' | 'green' | null;
 
+export type AgeRange = '13-17' | '18-24' | '25-34' | '35-44' | '45-54' | '55-64' | '65+' | 'prefer-not-to-say';
+export type Gender = 'male' | 'female' | 'non-binary' | 'prefer-not-to-say';
+
+export interface UserProfile {
+  name: string;
+  ageRange: AgeRange;
+  gender: Gender;
+  onboardingComplete: boolean;
+}
+
 export interface Goal {
   id: string;
   name: string;
@@ -20,6 +30,7 @@ export interface DailyEntry {
 }
 
 export interface AppData {
+  profile: UserProfile;
   goals: Goal[];
   entries: Record<string, DailyEntry>; // date -> entry
   settings: {

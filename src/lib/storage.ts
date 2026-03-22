@@ -6,6 +6,12 @@ const STORAGE_KEY = 'kpi-tracker-data';
 
 function getDefaultData(): AppData {
   return {
+    profile: {
+      name: '',
+      ageRange: 'prefer-not-to-say',
+      gender: 'prefer-not-to-say',
+      onboardingComplete: false,
+    },
     goals: DEFAULT_GOALS,
     entries: {},
     settings: {
