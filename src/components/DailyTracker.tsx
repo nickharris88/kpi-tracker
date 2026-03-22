@@ -52,8 +52,9 @@ export default function DailyTracker({ data, onRatingChange, onNotesChange }: Da
         <div className="text-center">
           <div className="flex items-center gap-2 justify-center">
             <Calendar size={18} className="text-gray-400" />
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-              {format(selectedDate, 'EEEE, MMMM d, yyyy')}
+            <h2 className="text-base sm:text-xl font-bold text-gray-900 dark:text-white">
+              <span className="hidden sm:inline">{format(selectedDate, 'EEEE, MMMM d, yyyy')}</span>
+              <span className="sm:hidden">{format(selectedDate, 'EEE, MMM d')}</span>
             </h2>
           </div>
           {isToday(selectedDate) && (
@@ -116,19 +117,17 @@ export default function DailyTracker({ data, onRatingChange, onNotesChange }: Da
               return (
                 <div
                   key={goal.id}
-                  className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between hover:shadow-md transition-shadow"
+                  className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex items-center gap-3 hover:shadow-md transition-shadow"
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{goal.icon}</span>
-                    <div>
-                      <p className="font-medium text-gray-900 dark:text-white">{goal.name}</p>
-                      {goal.target && (
-                        <p className="text-sm text-gray-500 dark:text-gray-400">{goal.target}</p>
-                      )}
-                    </div>
+                  <span className="text-2xl flex-shrink-0">{goal.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-900 dark:text-white text-sm sm:text-base">{goal.name}</p>
+                    {goal.target && (
+                      <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">{goal.target}</p>
+                    )}
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     {streak > 0 && (
                       <div className="flex items-center gap-1 text-orange-500 text-sm font-medium">
                         <Flame size={14} />

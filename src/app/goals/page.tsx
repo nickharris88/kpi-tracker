@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Trash2, GripVertical, Edit3, Check, X } from 'lucide-react';
+import { Plus, Trash2, GripVertical, Edit3, Check, X, Sparkles } from 'lucide-react';
 import { Goal, CATEGORY_COLORS, CATEGORY_LABELS } from '@/lib/types';
 import { useAppData } from '../providers';
+import { getSuggestedGoals, GoalSuggestion, suggestionToGoal } from '@/lib/goal-suggestions';
 
 const CATEGORY_OPTIONS = ['fitness', 'nutrition', 'learning', 'wellbeing', 'custom'] as const;
 const ICON_OPTIONS = ['🎯', '💪', '🏋️', '🦵', '🏃', '💊', '🥣', '🥗', '🍽️', '😊', '📚', '🇪🇸', '🧘', '💤', '💧', '🎨', '🎵', '📝', '🧠', '⭐'];
@@ -11,6 +12,7 @@ const ICON_OPTIONS = ['🎯', '💪', '🏋️', '🦵', '🏃', '💊', '🥣',
 export default function GoalsPage() {
   const { data, addGoal, updateGoal, removeGoal } = useAppData();
   const [showAdd, setShowAdd] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newGoal, setNewGoal] = useState({
     name: '',
@@ -19,6 +21,17 @@ export default function GoalsPage() {
     target: '',
     active: true,
   });
+
+  const existingGoalIds = new Set(data.goals.map(g => g.id));
+  const suggestions = getSuggestedGoals(
+    data.profile?.ageRange || 'prefer-not-to-say',
+    data.profile?.gender || 'prefer-not-to-say'
+  ).filter(s => !existingGoalIds.has(s.id));
+
+  const addSuggestion = (suggestion: GoalSuggestion) => {
+    const goal = suggestionToGoal(suggestion, data.goals.length);
+    addGoal(goal);
+  };
 
   const handleAdd = () => {
     if (!newGoal.name.trim()) return;
@@ -37,13 +50,24 @@ export default function GoalsPage() {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Goals</h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm">Manage your daily KPI goals</p>
         </div>
-        <button
-          onClick={() => setShowAdd(!showAdd)}
-          className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-        >
-          <Plus size={18} />
-          Add Goal
-        </button>
+        <div className="flex items-center gap-2">
+          {suggestions.length > 0 && (
+            <button
+              onClick={() => { setShowSuggestions(!showSuggestions); setShowAdd(false); }}
+              className="flex items-center gap-2 bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+            >
+              <Sparkles size={18} />
+              <span className="hidden sm:inline">Browse</span>
+            </button>
+          )}
+          <button
+            onClick={() => { setShowAdd(!showAdd); setShowSuggestions(false); }}
+            className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+          >
+            <Plus size={18} />
+            <span className="hidden sm:inline">Custom</span>
+          </button>
+        </div>
       </div>
 
       {/* Add Goal Form */}
@@ -122,6 +146,40 @@ export default function GoalsPage() {
               Add Goal
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Browse Suggestions */}
+      {showSuggestions && suggestions.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 space-y-4">
+          <h3 className="font-semibold text-gray-900 dark:text-white">Add a Suggested Goal</h3>
+          {(['fitness', 'nutrition', 'learning', 'wellbeing'] as const).map(category => {
+            const categoryGoals = suggestions.filter(s => s.category === category);
+            if (categoryGoals.length === 0) return null;
+            return (
+              <div key={category}>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                  {CATEGORY_LABELS[category]}
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {categoryGoals.map(s => (
+                    <button
+                      key={s.id}
+                      onClick={() => addSuggestion(s)}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      <span className="text-xl flex-shrink-0">{s.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm text-gray-900 dark:text-white">{s.name}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{s.target}</p>
+                      </div>
+                      <Plus size={16} className="text-gray-400 flex-shrink-0" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
