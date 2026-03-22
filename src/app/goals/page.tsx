@@ -1,0 +1,276 @@
+'use client';
+
+import { useState } from 'react';
+import { Plus, Trash2, GripVertical, Edit3, Check, X } from 'lucide-react';
+import { Goal, CATEGORY_COLORS, CATEGORY_LABELS } from '@/lib/types';
+import { useAppData } from '../providers';
+
+const CATEGORY_OPTIONS = ['fitness', 'nutrition', 'learning', 'wellbeing', 'custom'] as const;
+const ICON_OPTIONS = ['🎯', '💪', '🏋️', '🦵', '🏃', '💊', '🥣', '🥗', '🍽️', '😊', '📚', '🇪🇸', '🧘', '💤', '💧', '🎨', '🎵', '📝', '🧠', '⭐'];
+
+export default function GoalsPage() {
+  const { data, addGoal, updateGoal, removeGoal } = useAppData();
+  const [showAdd, setShowAdd] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [newGoal, setNewGoal] = useState({
+    name: '',
+    category: 'custom' as Goal['category'],
+    icon: '🎯',
+    target: '',
+    active: true,
+  });
+
+  const handleAdd = () => {
+    if (!newGoal.name.trim()) return;
+    addGoal(newGoal);
+    setNewGoal({ name: '', category: 'custom', icon: '🎯', target: '', active: true });
+    setShowAdd(false);
+  };
+
+  const activeGoals = data.goals.filter(g => g.active);
+  const inactiveGoals = data.goals.filter(g => !g.active);
+
+  return (
+    <div className="max-w-3xl mx-auto space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Goals</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">Manage your daily KPI goals</p>
+        </div>
+        <button
+          onClick={() => setShowAdd(!showAdd)}
+          className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+        >
+          <Plus size={18} />
+          Add Goal
+        </button>
+      </div>
+
+      {/* Add Goal Form */}
+      {showAdd && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 space-y-4">
+          <h3 className="font-semibold text-gray-900 dark:text-white">New Goal</h3>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
+              <input
+                type="text"
+                value={newGoal.name}
+                onChange={e => setNewGoal({ ...newGoal, name: e.target.value })}
+                placeholder="e.g., Read 30 minutes"
+                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Target</label>
+              <input
+                type="text"
+                value={newGoal.target}
+                onChange={e => setNewGoal({ ...newGoal, target: e.target.value })}
+                placeholder="e.g., 30 minutes daily"
+                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
+              <select
+                value={newGoal.category}
+                onChange={e => setNewGoal({ ...newGoal, category: e.target.value as Goal['category'] })}
+                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500"
+              >
+                {CATEGORY_OPTIONS.map(cat => (
+                  <option key={cat} value={cat}>{CATEGORY_LABELS[cat]}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Icon</label>
+              <div className="flex flex-wrap gap-1">
+                {ICON_OPTIONS.map(icon => (
+                  <button
+                    key={icon}
+                    onClick={() => setNewGoal({ ...newGoal, icon })}
+                    className={`w-8 h-8 rounded-lg text-lg flex items-center justify-center transition-colors ${
+                      newGoal.icon === icon
+                        ? 'bg-blue-100 dark:bg-blue-900/40 ring-2 ring-blue-500'
+                        : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    {icon}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-2 justify-end">
+            <button
+              onClick={() => setShowAdd(false)}
+              className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-sm"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleAdd}
+              disabled={!newGoal.name.trim()}
+              className="px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium"
+            >
+              Add Goal
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Active Goals */}
+      <div>
+        <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+          Active Goals ({activeGoals.length})
+        </h2>
+        <div className="space-y-2">
+          {activeGoals.map(goal => (
+            <GoalRow
+              key={goal.id}
+              goal={goal}
+              isEditing={editingId === goal.id}
+              onEdit={() => setEditingId(goal.id)}
+              onCancelEdit={() => setEditingId(null)}
+              onUpdate={(updates) => { updateGoal(goal.id, updates); setEditingId(null); }}
+              onToggleActive={() => updateGoal(goal.id, { active: false })}
+              onRemove={() => removeGoal(goal.id)}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Inactive Goals */}
+      {inactiveGoals.length > 0 && (
+        <div>
+          <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+            Inactive Goals ({inactiveGoals.length})
+          </h2>
+          <div className="space-y-2 opacity-60">
+            {inactiveGoals.map(goal => (
+              <div
+                key={goal.id}
+                className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">{goal.icon}</span>
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white line-through">{goal.name}</p>
+                    <p className="text-xs text-gray-500">{CATEGORY_LABELS[goal.category]}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => updateGoal(goal.id, { active: true })}
+                    className="text-sm text-blue-500 hover:text-blue-600 font-medium"
+                  >
+                    Reactivate
+                  </button>
+                  <button
+                    onClick={() => removeGoal(goal.id)}
+                    className="p-1 text-red-400 hover:text-red-500"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GoalRow({
+  goal,
+  isEditing,
+  onEdit,
+  onCancelEdit,
+  onUpdate,
+  onToggleActive,
+  onRemove,
+}: {
+  goal: Goal;
+  isEditing: boolean;
+  onEdit: () => void;
+  onCancelEdit: () => void;
+  onUpdate: (updates: Partial<Goal>) => void;
+  onToggleActive: () => void;
+  onRemove: () => void;
+}) {
+  const [editName, setEditName] = useState(goal.name);
+  const [editTarget, setEditTarget] = useState(goal.target || '');
+
+  if (isEditing) {
+    return (
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border-2 border-blue-400 dark:border-blue-500">
+        <div className="flex items-center gap-3">
+          <span className="text-xl">{goal.icon}</span>
+          <input
+            type="text"
+            value={editName}
+            onChange={e => setEditName(e.target.value)}
+            className="flex-1 px-2 py-1 bg-gray-50 dark:bg-gray-700 rounded text-sm text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600"
+          />
+          <input
+            type="text"
+            value={editTarget}
+            onChange={e => setEditTarget(e.target.value)}
+            placeholder="Target"
+            className="w-40 px-2 py-1 bg-gray-50 dark:bg-gray-700 rounded text-sm text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600"
+          />
+          <button onClick={() => onUpdate({ name: editName, target: editTarget })} className="p-1 text-emerald-500 hover:text-emerald-600">
+            <Check size={18} />
+          </button>
+          <button onClick={onCancelEdit} className="p-1 text-gray-400 hover:text-gray-600">
+            <X size={18} />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between group hover:shadow-md transition-shadow">
+      <div className="flex items-center gap-3">
+        <GripVertical size={16} className="text-gray-300 dark:text-gray-600" />
+        <span className="text-xl">{goal.icon}</span>
+        <div>
+          <p className="font-medium text-gray-900 dark:text-white">{goal.name}</p>
+          <div className="flex items-center gap-2">
+            <span
+              className="text-xs px-2 py-0.5 rounded-full font-medium"
+              style={{
+                backgroundColor: CATEGORY_COLORS[goal.category] + '20',
+                color: CATEGORY_COLORS[goal.category],
+              }}
+            >
+              {CATEGORY_LABELS[goal.category]}
+            </span>
+            {goal.target && (
+              <span className="text-xs text-gray-500 dark:text-gray-400">{goal.target}</span>
+            )}
+          </div>
+        </div>
+      </div>
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button onClick={onEdit} className="p-1.5 text-gray-400 hover:text-blue-500 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+          <Edit3 size={16} />
+        </button>
+        <button onClick={onToggleActive} className="p-1.5 text-gray-400 hover:text-amber-500 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700" title="Deactivate">
+          <X size={16} />
+        </button>
+        <button onClick={onRemove} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+          <Trash2 size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}
