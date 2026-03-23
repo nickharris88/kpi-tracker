@@ -81,7 +81,7 @@ export default function StreakSidebar({ data }: StreakSidebarProps) {
             <div key={goal.id} className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-sm">{goal.icon}</span>
-                <span className="text-sm text-gray-700 dark:text-gray-300 truncate max-w-[120px]">{goal.name}</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">{goal.name}</span>
               </div>
               <div className="flex items-center gap-1">
                 {streak > 0 ? (
@@ -108,7 +108,7 @@ export default function StreakSidebar({ data }: StreakSidebarProps) {
           {streaks.map(({ goal, rate7 }) => (
             <div key={goal.id} className="space-y-1">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-600 dark:text-gray-400 truncate max-w-[120px]">
+                <span className="text-xs text-gray-600 dark:text-gray-400">
                   {goal.icon} {goal.name}
                 </span>
                 <span className="text-xs font-medium text-gray-900 dark:text-white">{rate7}%</span>

@@ -1,7 +1,7 @@
 'use client';
 
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
-import { getAuth, Auth, GoogleAuthProvider } from 'firebase/auth';
+import { getAuth, Auth, GoogleAuthProvider, EmailAuthProvider } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -40,6 +40,10 @@ export function getDbInstance(): Firestore {
 
 export function getGoogleProvider(): GoogleAuthProvider {
   return new GoogleAuthProvider();
+}
+
+export function getEmailProvider(): EmailAuthProvider {
+  return new EmailAuthProvider();
 }
 
 export function isFirebaseConfigured(): boolean {
