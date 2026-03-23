@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { AgeRange, Gender, UserProfile, Goal } from '@/lib/types';
 import { getSuggestedGoals, GoalSuggestion, suggestionToGoal } from '@/lib/goal-suggestions';
-import { ChevronRight, ChevronLeft, Check, Plus, X } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Check, Plus, X, Edit3 } from 'lucide-react';
 
 interface OnboardingProps {
   onComplete: (profile: UserProfile, goals: Goal[]) => void;
@@ -56,12 +56,25 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   const [selectedGoalIds, setSelectedGoalIds] = useState<Set<string>>(new Set());
   const [customGoalName, setCustomGoalName] = useState('');
   const [customGoals, setCustomGoals] = useState<GoalSuggestion[]>([]);
+  const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
+  const [goalOverrides, setGoalOverrides] = useState<Record<string, { name?: string; target?: string }>>({});
 
   const suggestions = ageRange && gender
     ? getSuggestedGoals(ageRange, gender)
     : [];
 
-  const allSuggestions = [...suggestions, ...customGoals];
+  const allSuggestions = [...suggestions, ...customGoals].map(s => ({
+    ...s,
+    name: goalOverrides[s.id]?.name || s.name,
+    target: goalOverrides[s.id]?.target || s.target,
+  }));
+
+  const updateGoalOverride = (id: string, field: 'name' | 'target', value: string) => {
+    setGoalOverrides(prev => ({
+      ...prev,
+      [id]: { ...prev[id], [field]: value },
+    }));
+  };
 
   const toggleGoal = (id: string) => {
     setSelectedGoalIds(prev => {
@@ -212,23 +225,57 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {categoryGoals.map(s => {
                         const selected = selectedGoalIds.has(s.id);
+                        const isEditing = editingGoalId === s.id;
                         return (
-                          <button
-                            key={s.id}
-                            onClick={() => toggleGoal(s.id)}
-                            className={`flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-left transition-all ${
-                              selected
-                                ? CATEGORY_COLORS_SELECTED[category]
-                                : CATEGORY_COLORS[category] + ' hover:shadow-sm'
-                            }`}
-                          >
-                            <span className="text-xl flex-shrink-0">{s.icon}</span>
-                            <div className="flex-1 min-w-0">
-                              <div className={`font-medium text-sm ${selected ? 'text-white' : ''}`}>{s.name}</div>
-                              <div className={`text-xs ${selected ? 'text-white/80' : 'opacity-70'}`}>{s.target}</div>
-                            </div>
-                            {selected && <Check size={18} className="flex-shrink-0" />}
-                          </button>
+                          <div key={s.id}>
+                            <button
+                              onClick={() => toggleGoal(s.id)}
+                              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-left transition-all ${
+                                selected
+                                  ? CATEGORY_COLORS_SELECTED[category]
+                                  : CATEGORY_COLORS[category] + ' hover:shadow-sm'
+                              }`}
+                            >
+                              <span className="text-xl flex-shrink-0">{s.icon}</span>
+                              <div className="flex-1 min-w-0">
+                                <div className={`font-medium text-sm ${selected ? 'text-white' : ''}`}>{s.name}</div>
+                                <div className={`text-xs ${selected ? 'text-white/80' : 'opacity-70'}`}>{s.target}</div>
+                              </div>
+                              {selected && (
+                                <div className="flex items-center gap-1 flex-shrink-0">
+                                  <span
+                                    role="button"
+                                    onClick={(e) => { e.stopPropagation(); setEditingGoalId(isEditing ? null : s.id); }}
+                                    className="text-white/70 hover:text-white"
+                                    title="Customise"
+                                  >
+                                    <Edit3 size={14} />
+                                  </span>
+                                  <Check size={18} />
+                                </div>
+                              )}
+                            </button>
+                            {selected && isEditing && (
+                              <div className="mt-1 flex gap-2 px-2">
+                                <input
+                                  type="text"
+                                  value={s.name}
+                                  onChange={e => updateGoalOverride(s.id, 'name', e.target.value)}
+                                  onClick={e => e.stopPropagation()}
+                                  placeholder="Goal name"
+                                  className="flex-1 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
+                                />
+                                <input
+                                  type="text"
+                                  value={s.target}
+                                  onChange={e => updateGoalOverride(s.id, 'target', e.target.value)}
+                                  onClick={e => e.stopPropagation()}
+                                  placeholder="Target"
+                                  className="w-28 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white"
+                                />
+                              </div>
+                            )}
+                          </div>
                         );
                       })}
                     </div>
