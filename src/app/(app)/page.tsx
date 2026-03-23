@@ -3,7 +3,7 @@
 import DailyTracker from '@/components/DailyTracker';
 import StreakSidebar from '@/components/StreakSidebar';
 import { RAGLegend } from '@/components/RAGSmiley';
-import { useAppData } from './providers';
+import { useAppData } from '@/app/providers';
 
 export default function DashboardPage() {
   const { data, setGoalRating, setDayNotes } = useAppData();

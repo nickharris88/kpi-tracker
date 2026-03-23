@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { format, addDays, subDays, isToday, isFuture } from 'date-fns';
-import { ChevronLeft, ChevronRight, Calendar, MessageSquare, Flame } from 'lucide-react';
-import { AppData, RAGStatus, CATEGORY_COLORS, CATEGORY_LABELS } from '@/lib/types';
+import { ChevronLeft, ChevronRight, Calendar, MessageSquare, Flame, Trophy, X } from 'lucide-react';
+import { AppData, RAGStatus, CATEGORY_COLORS, CATEGORY_LABELS, isGoalScheduledForDate } from '@/lib/types';
 import { getEntry, getDailyScore, getStreakForGoal } from '@/lib/storage';
+import { checkBadges, Badge } from '@/lib/badges';
+import { CalendarDays } from 'lucide-react';
 import RAGSmiley from './RAGSmiley';
 
 interface DailyTrackerProps {
@@ -13,13 +15,67 @@ interface DailyTrackerProps {
   onNotesChange: (date: string, notes: string) => void;
 }
 
+function BadgeToast({ badge, onClose }: { badge: Badge; onClose: () => void }) {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 5000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  return (
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-bounce-in">
+      <div className="bg-gradient-to-r from-amber-500 via-yellow-500 to-orange-500 rounded-2xl px-6 py-4 shadow-2xl shadow-amber-500/30 flex items-center gap-4 min-w-[300px] max-w-md">
+        <span className="text-4xl">{badge.icon}</span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <Trophy className="text-white" size={16} />
+            <span className="text-white/80 text-xs font-semibold uppercase tracking-wider">Badge Unlocked!</span>
+          </div>
+          <p className="text-white font-bold text-lg truncate">{badge.name}</p>
+          <p className="text-white/80 text-sm truncate">{badge.description}</p>
+        </div>
+        <button onClick={onClose} className="text-white/60 hover:text-white transition-colors flex-shrink-0">
+          <X size={18} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function DailyTracker({ data, onRatingChange, onNotesChange }: DailyTrackerProps) {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showNotes, setShowNotes] = useState(false);
+  const [badgeToast, setBadgeToast] = useState<Badge | null>(null);
+  const prevBadgesRef = useRef<Set<string>>(new Set());
   const dateStr = format(selectedDate, 'yyyy-MM-dd');
   const entry = getEntry(data, dateStr);
   const score = getDailyScore(data, dateStr);
-  const activeGoals = data.goals.filter(g => g.active);
+  const allActiveGoals = data.goals.filter(g => g.active);
+  const activeGoals = allActiveGoals.filter(g => isGoalScheduledForDate(g, selectedDate));
+  const hiddenCount = allActiveGoals.length - activeGoals.length;
+
+  // Check for newly earned badges when data changes
+  const dismissToast = useCallback(() => setBadgeToast(null), []);
+
+  useEffect(() => {
+    const badges = checkBadges(data);
+    const earnedIds = new Set(badges.filter(b => b.earned).map(b => b.id));
+
+    // On first render, just capture the current state
+    if (prevBadgesRef.current.size === 0 && earnedIds.size > 0) {
+      prevBadgesRef.current = earnedIds;
+      return;
+    }
+
+    // Find newly earned badges
+    for (const badge of badges) {
+      if (badge.earned && !prevBadgesRef.current.has(badge.id)) {
+        setBadgeToast(badge);
+        break; // Show one at a time
+      }
+    }
+
+    prevBadgesRef.current = earnedIds;
+  }, [data]);
 
   // Group goals by category
   const groupedGoals = activeGoals.reduce((acc, goal) => {
@@ -147,6 +203,14 @@ export default function DailyTracker({ data, onRatingChange, onNotesChange }: Da
         </div>
       ))}
 
+      {/* Hidden goals notice */}
+      {hiddenCount > 0 && (
+        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-lg px-4 py-3">
+          <CalendarDays size={16} className="flex-shrink-0" />
+          <span>{hiddenCount} goal{hiddenCount > 1 ? 's' : ''} not scheduled for {format(selectedDate, 'EEEE')}</span>
+        </div>
+      )}
+
       {/* Notes Section */}
       <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
         <button
@@ -166,6 +230,9 @@ export default function DailyTracker({ data, onRatingChange, onNotesChange }: Da
           />
         )}
       </div>
+
+      {/* Badge Toast */}
+      {badgeToast && <BadgeToast badge={badgeToast} onClose={dismissToast} />}
     </div>
   );
 }

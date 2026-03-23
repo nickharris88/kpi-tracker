@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Trash2, GripVertical, Edit3, Check, X, Sparkles } from 'lucide-react';
-import { Goal, CATEGORY_COLORS, CATEGORY_LABELS } from '@/lib/types';
-import { useAppData } from '../providers';
+import { Plus, Trash2, GripVertical, Edit3, Check, X, Sparkles, CalendarDays } from 'lucide-react';
+import { Goal, GoalSchedule, CATEGORY_COLORS, CATEGORY_LABELS, DAY_LABELS_SINGLE, getScheduleLabel } from '@/lib/types';
+import { useAppData } from '@/app/providers';
 import { getSuggestedGoals, GoalSuggestion, suggestionToGoal } from '@/lib/goal-suggestions';
 
 const CATEGORY_OPTIONS = ['fitness', 'nutrition', 'learning', 'wellbeing', 'custom'] as const;
@@ -20,6 +20,8 @@ export default function GoalsPage() {
     icon: '🎯',
     target: '',
     active: true,
+    schedule: 'daily' as GoalSchedule,
+    scheduleDays: [] as number[],
   });
 
   const existingGoalIds = new Set(data.goals.map(g => g.id));
@@ -36,7 +38,7 @@ export default function GoalsPage() {
   const handleAdd = () => {
     if (!newGoal.name.trim()) return;
     addGoal(newGoal);
-    setNewGoal({ name: '', category: 'custom', icon: '🎯', target: '', active: true });
+    setNewGoal({ name: '', category: 'custom', icon: '🎯', target: '', active: true, schedule: 'daily', scheduleDays: [] });
     setShowAdd(false);
   };
 
@@ -129,6 +131,16 @@ export default function GoalsPage() {
                 ))}
               </div>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Schedule</label>
+            <SchedulePicker
+              schedule={newGoal.schedule}
+              scheduleDays={newGoal.scheduleDays}
+              onScheduleChange={(schedule) => setNewGoal({ ...newGoal, schedule })}
+              onScheduleDaysChange={(scheduleDays) => setNewGoal({ ...newGoal, scheduleDays })}
+            />
           </div>
 
           <div className="flex gap-2 justify-end">
@@ -246,6 +258,72 @@ export default function GoalsPage() {
   );
 }
 
+const SCHEDULE_PRESETS: { value: GoalSchedule; label: string }[] = [
+  { value: 'daily', label: 'Daily' },
+  { value: 'weekdays', label: 'Weekdays' },
+  { value: 'weekends', label: 'Weekends' },
+  { value: 'custom', label: 'Custom' },
+];
+
+function SchedulePicker({
+  schedule,
+  scheduleDays,
+  onScheduleChange,
+  onScheduleDaysChange,
+}: {
+  schedule: GoalSchedule;
+  scheduleDays: number[];
+  onScheduleChange: (s: GoalSchedule) => void;
+  onScheduleDaysChange: (d: number[]) => void;
+}) {
+  const toggleDay = (day: number) => {
+    if (scheduleDays.includes(day)) {
+      onScheduleDaysChange(scheduleDays.filter(d => d !== day));
+    } else {
+      onScheduleDaysChange([...scheduleDays, day]);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-2">
+        {SCHEDULE_PRESETS.map(preset => (
+          <button
+            key={preset.value}
+            type="button"
+            onClick={() => onScheduleChange(preset.value)}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              schedule === preset.value
+                ? 'bg-blue-500 text-white'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+            }`}
+          >
+            {preset.label}
+          </button>
+        ))}
+      </div>
+      {schedule === 'custom' && (
+        <div className="flex gap-1">
+          {DAY_LABELS_SINGLE.map((label, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => toggleDay(idx)}
+              className={`w-9 h-9 rounded-lg text-sm font-semibold transition-colors ${
+                scheduleDays.includes(idx)
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function GoalRow({
   goal,
   isEditing,
@@ -265,10 +343,12 @@ function GoalRow({
 }) {
   const [editName, setEditName] = useState(goal.name);
   const [editTarget, setEditTarget] = useState(goal.target || '');
+  const [editSchedule, setEditSchedule] = useState<GoalSchedule>(goal.schedule || 'daily');
+  const [editScheduleDays, setEditScheduleDays] = useState<number[]>(goal.scheduleDays || []);
 
   if (isEditing) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border-2 border-blue-400 dark:border-blue-500">
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border-2 border-blue-400 dark:border-blue-500 space-y-3">
         <div className="flex items-center gap-3">
           <span className="text-xl">{goal.icon}</span>
           <input
@@ -284,16 +364,37 @@ function GoalRow({
             placeholder="Target"
             className="w-40 px-2 py-1 bg-gray-50 dark:bg-gray-700 rounded text-sm text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600"
           />
-          <button onClick={() => onUpdate({ name: editName, target: editTarget })} className="p-1 text-emerald-500 hover:text-emerald-600">
-            <Check size={18} />
-          </button>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Schedule</label>
+          <SchedulePicker
+            schedule={editSchedule}
+            scheduleDays={editScheduleDays}
+            onScheduleChange={setEditSchedule}
+            onScheduleDaysChange={setEditScheduleDays}
+          />
+        </div>
+        <div className="flex gap-2 justify-end">
           <button onClick={onCancelEdit} className="p-1 text-gray-400 hover:text-gray-600">
             <X size={18} />
+          </button>
+          <button
+            onClick={() => onUpdate({
+              name: editName,
+              target: editTarget,
+              schedule: editSchedule,
+              scheduleDays: editSchedule === 'custom' ? editScheduleDays : undefined,
+            })}
+            className="p-1 text-emerald-500 hover:text-emerald-600"
+          >
+            <Check size={18} />
           </button>
         </div>
       </div>
     );
   }
+
+  const scheduleLabel = getScheduleLabel(goal);
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between group hover:shadow-md transition-shadow">
@@ -302,7 +403,7 @@ function GoalRow({
         <span className="text-xl">{goal.icon}</span>
         <div>
           <p className="font-medium text-gray-900 dark:text-white">{goal.name}</p>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span
               className="text-xs px-2 py-0.5 rounded-full font-medium"
               style={{
@@ -314,6 +415,12 @@ function GoalRow({
             </span>
             {goal.target && (
               <span className="text-xs text-gray-500 dark:text-gray-400">{goal.target}</span>
+            )}
+            {scheduleLabel !== 'Daily' && (
+              <span className="flex items-center gap-1 text-xs text-blue-500 dark:text-blue-400">
+                <CalendarDays size={12} />
+                {scheduleLabel}
+              </span>
             )}
           </div>
         </div>

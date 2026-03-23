@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useCallback } from 'react';
 import { format } from 'date-fns';
-import { Share2, Copy, Check, Trophy, Flame, Target, TrendingUp, Users } from 'lucide-react';
-import { useAppData } from '../providers';
+import { Share2, Copy, Check, Trophy, Flame, Target, TrendingUp, Users, Link2, RefreshCw, Eye } from 'lucide-react';
+import { useAppData } from '@/app/providers';
 import { generateShareSummary, getCompletionRate, getStreakForGoal, getDailyScore } from '@/lib/storage';
 import { CATEGORY_COLORS, CATEGORY_LABELS } from '@/lib/types';
+import { generateShareCode, updateSharedDashboard, deleteSharedDashboard } from '@/lib/firestore-storage';
 
 type CardTheme = 'blue' | 'purple' | 'emerald' | 'sunset';
 
@@ -17,8 +18,9 @@ const themes: Record<CardTheme, { from: string; to: string; accent: string }> = 
 };
 
 export default function SharePage() {
-  const { data } = useAppData();
+  const { data, user, updateSharing } = useAppData();
   const [copied, setCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [theme, setTheme] = useState<CardTheme>('blue');
   const [shareType, setShareType] = useState<'snapshot' | 'goals' | 'streaks'>('snapshot');
   const cardRef = useRef<HTMLDivElement>(null);
@@ -33,6 +35,51 @@ export default function SharePage() {
       .map(g => ({ goal: g, streak: getStreakForGoal(data, g.id), rate: getCompletionRate(data, g.id, 30) }))
       .sort((a, b) => b.streak - a.streak);
   }, [data, activeGoals]);
+
+  const sharingEnabled = data.sharing?.enabled ?? false;
+  const shareCode = data.sharing?.shareCode ?? '';
+
+  const getShareUrl = useCallback(() => {
+    if (typeof window === 'undefined') return '';
+    return `${window.location.origin}/shared/${shareCode}`;
+  }, [shareCode]);
+
+  const handleToggleSharing = useCallback(async () => {
+    if (sharingEnabled) {
+      // Disable sharing
+      if (shareCode) {
+        await deleteSharedDashboard(shareCode);
+      }
+      updateSharing({ enabled: false, shareCode: '', sharedWith: [] });
+    } else {
+      // Enable sharing
+      const code = generateShareCode();
+      updateSharing({ enabled: true, shareCode: code, sharedWith: [] });
+      // The shared dashboard will be created on next persist via saveUserData
+      if (user) {
+        const newData = { ...data, sharing: { enabled: true, shareCode: code, sharedWith: [] } };
+        await updateSharedDashboard(user.uid, newData);
+      }
+    }
+  }, [sharingEnabled, shareCode, updateSharing, user, data]);
+
+  const handleRegenerateCode = useCallback(async () => {
+    if (shareCode) {
+      await deleteSharedDashboard(shareCode);
+    }
+    const newCode = generateShareCode();
+    updateSharing({ enabled: true, shareCode: newCode, sharedWith: data.sharing?.sharedWith ?? [] });
+    if (user) {
+      const newData = { ...data, sharing: { enabled: true, shareCode: newCode, sharedWith: data.sharing?.sharedWith ?? [] } };
+      await updateSharedDashboard(user.uid, newData);
+    }
+  }, [shareCode, updateSharing, user, data]);
+
+  const handleCopyLink = async () => {
+    await navigator.clipboard.writeText(getShareUrl());
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2000);
+  };
 
   const generateTextSummary = () => {
     const lines = [
@@ -114,6 +161,72 @@ export default function SharePage() {
         </h1>
         <p className="text-gray-500 dark:text-gray-400 text-sm">Share your goals and progress with friends</p>
       </div>
+
+      {/* Accountability Partner Section */}
+      {user && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Users size={20} className="text-indigo-500" />
+              <h3 className="font-semibold text-gray-900 dark:text-white">Accountability Partner</h3>
+            </div>
+            <button
+              onClick={handleToggleSharing}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                sharingEnabled ? 'bg-indigo-500' : 'bg-gray-300 dark:bg-gray-600'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  sharingEnabled ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Share a live, read-only view of your dashboard with friends or accountability partners. They can see your goals, streaks, and daily progress without needing to log in.
+          </p>
+
+          {sharingEnabled && shareCode && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-900 rounded-lg p-3">
+                <Link2 size={16} className="text-gray-400 flex-shrink-0" />
+                <code className="text-sm text-indigo-600 dark:text-indigo-400 flex-1 truncate">
+                  {getShareUrl()}
+                </code>
+                <button
+                  onClick={handleCopyLink}
+                  className="flex-shrink-0 p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                  title="Copy link"
+                >
+                  {linkCopied ? <Check size={16} className="text-emerald-500" /> : <Copy size={16} className="text-gray-400" />}
+                </button>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={handleRegenerateCode}
+                  className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                >
+                  <RefreshCw size={14} />
+                  Regenerate link
+                </button>
+                <span className="text-gray-300 dark:text-gray-600">|</span>
+                <a
+                  href={getShareUrl()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-sm text-indigo-500 hover:text-indigo-600 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors"
+                >
+                  <Eye size={14} />
+                  Preview shared view
+                </a>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Share Type Selector */}
       <div className="flex gap-2">
@@ -311,6 +424,16 @@ export default function SharePage() {
           {generateTextSummary()}
         </pre>
       </div>
+
+      {/* Firestore Security Rules Note */}
+      {user && sharingEnabled && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
+          <p className="text-sm text-amber-800 dark:text-amber-200 font-medium mb-1">Firestore Security Rules</p>
+          <p className="text-xs text-amber-600 dark:text-amber-300">
+            Ensure your Firestore rules allow public reads on <code className="bg-amber-100 dark:bg-amber-900/40 px-1 py-0.5 rounded">/shared/&#123;code&#125;</code> while restricting writes to the owner. See the project README for the recommended rules.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

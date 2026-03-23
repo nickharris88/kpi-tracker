@@ -1,6 +1,6 @@
 'use client';
 
-import { AppData, DEFAULT_GOALS, DailyEntry, Goal, RAGStatus } from './types';
+import { AppData, DEFAULT_GOALS, DailyEntry, Goal, RAGStatus, isGoalScheduledForDate } from './types';
 
 const STORAGE_KEY = 'kpi-tracker-data';
 
@@ -195,11 +195,14 @@ export function generateShareSummary(data: AppData): {
 
 // Analytics helpers
 export function getStreakForGoal(data: AppData, goalId: string): number {
+  const goal = data.goals.find(g => g.id === goalId);
   const today = new Date();
   let streak = 0;
   for (let i = 0; i < 365; i++) {
     const d = new Date(today);
     d.setDate(d.getDate() - i);
+    // Skip days the goal is not scheduled for
+    if (goal && !isGoalScheduledForDate(goal, d)) continue;
     const dateStr = d.toISOString().split('T')[0];
     const entry = data.entries[dateStr];
     if (entry?.ratings[goalId] === 'green') {
@@ -212,12 +215,15 @@ export function getStreakForGoal(data: AppData, goalId: string): number {
 }
 
 export function getCompletionRate(data: AppData, goalId: string, days: number): number {
+  const goal = data.goals.find(g => g.id === goalId);
   const today = new Date();
   let completed = 0;
   let total = 0;
   for (let i = 0; i < days; i++) {
     const d = new Date(today);
     d.setDate(d.getDate() - i);
+    // Skip days the goal is not scheduled for
+    if (goal && !isGoalScheduledForDate(goal, d)) continue;
     const dateStr = d.toISOString().split('T')[0];
     const entry = data.entries[dateStr];
     if (entry?.ratings[goalId]) {
@@ -231,7 +237,8 @@ export function getCompletionRate(data: AppData, goalId: string, days: number): 
 export function getDailyScore(data: AppData, date: string): number {
   const entry = data.entries[date];
   if (!entry) return 0;
-  const activeGoals = data.goals.filter(g => g.active);
+  const dateObj = new Date(date + 'T00:00:00');
+  const activeGoals = data.goals.filter(g => g.active && isGoalScheduledForDate(g, dateObj));
   if (activeGoals.length === 0) return 0;
   let score = 0;
   for (const goal of activeGoals) {

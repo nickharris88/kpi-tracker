@@ -4,7 +4,7 @@ import { createContext, useContext, useState, useEffect, useCallback, ReactNode 
 import { Moon, Sun } from 'lucide-react';
 import { onAuthStateChanged, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, User } from 'firebase/auth';
 import { getAuthInstance, getGoogleProvider, isFirebaseConfigured } from '@/lib/firebase';
-import { AppData, RAGStatus, Goal, UserProfile } from '@/lib/types';
+import { AppData, RAGStatus, Goal, UserProfile, SharingConfig } from '@/lib/types';
 import { loadUserData, saveUserData, subscribeToUserData } from '@/lib/firestore-storage';
 import {
   loadData, saveData, setRating, setNotes, setRunData as setRunDataHelper,
@@ -25,6 +25,7 @@ interface AppContextType {
   updateGoal: (goalId: string, updates: Partial<Goal>) => void;
   removeGoal: (goalId: string) => void;
   toggleDarkMode: () => void;
+  updateSharing: (sharing: SharingConfig) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -371,6 +372,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     updateGoal: (goalId, updates) => persist(updateGoalHelper(data, goalId, updates)),
     removeGoal: (goalId) => persist(removeGoalHelper(data, goalId)),
     toggleDarkMode: () => persist(toggleDarkModeHelper(data)),
+    updateSharing: (sharing) => persist({ ...data, sharing }),
   };
 
   return <AppContext.Provider value={ctx}>{children}</AppContext.Provider>;

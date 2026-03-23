@@ -3,6 +3,7 @@
 import { ReactNode } from 'react';
 import { AppProvider, useAppData } from './providers';
 import Navigation from '@/components/Navigation';
+import OfflineBanner from '@/components/OfflineBanner';
 
 function LayoutInner({ children }: { children: ReactNode }) {
   const { data, toggleDarkMode } = useAppData();
@@ -14,6 +15,7 @@ function LayoutInner({ children }: { children: ReactNode }) {
         <main className="px-4 py-6">
           {children}
         </main>
+        <OfflineBanner />
       </div>
     </div>
   );

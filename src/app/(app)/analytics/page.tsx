@@ -12,7 +12,7 @@ import {
   getDailyScore, getCompletionRate, getConsistencyRate, getWeekOverWeekChange,
   getGoalScoresOverTime, getCategoryScoresOverTime,
 } from '@/lib/storage';
-import { useAppData } from '../providers';
+import { useAppData } from '@/app/providers';
 
 type TimeRange = '7d' | '30d' | '90d';
 

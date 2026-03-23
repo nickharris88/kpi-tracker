@@ -2,7 +2,7 @@
 
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth, GoogleAuthProvider, EmailAuthProvider } from 'firebase/auth';
-import { getFirestore, Firestore } from 'firebase/firestore';
+import { getFirestore, initializeFirestore, Firestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -33,7 +33,17 @@ export function getAuthInstance(): Auth {
 
 export function getDbInstance(): Firestore {
   if (!dbInstance) {
-    dbInstance = getFirestore(getApp());
+    try {
+      // Initialize Firestore with offline persistence and multi-tab support
+      dbInstance = initializeFirestore(getApp(), {
+        localCache: persistentLocalCache({
+          tabManager: persistentMultipleTabManager(),
+        }),
+      });
+    } catch {
+      // If Firestore is already initialized (e.g. hot reload), get the existing instance
+      dbInstance = getFirestore(getApp());
+    }
   }
   return dbInstance;
 }

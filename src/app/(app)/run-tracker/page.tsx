@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
 import { Timer, TrendingDown, Trophy, Plus, Target } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
-import { useAppData } from '../providers';
+import { useAppData } from '@/app/providers';
 
 export default function RunTrackerPage() {
   const { data, setRunData } = useAppData();
