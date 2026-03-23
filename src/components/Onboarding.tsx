@@ -105,7 +105,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   const canProceedStep1 = selectedGoalIds.size > 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex items-center justify-center p-4">
       <div className="w-full max-w-2xl">
         {/* Progress dots */}
         <div className="flex justify-center gap-2 mb-8">
@@ -121,28 +121,28 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
         {/* Step 0: Welcome & Profile */}
         {step === 0 && (
-          <div className="bg-white rounded-2xl shadow-lg p-8 animate-fadeIn">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 animate-fadeIn">
             <div className="text-center mb-8">
               <span className="text-5xl mb-4 block">🎯</span>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome to KPI Tracker</h1>
-              <p className="text-gray-500">Let&apos;s set you up with some personal goals to track every day.</p>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Welcome to KPI Tracker</h1>
+              <p className="text-gray-500 dark:text-gray-400">Let&apos;s set you up with some personal goals to track every day.</p>
             </div>
 
             <div className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">What&apos;s your name?</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">What&apos;s your name?</label>
                 <input
                   type="text"
                   value={name}
                   onChange={e => setName(e.target.value)}
                   placeholder="Enter your name"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none text-lg text-gray-900"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none text-lg text-gray-900 dark:text-white"
                   autoFocus
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Age range</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Age range</label>
                 <div className="grid grid-cols-4 gap-2">
                   {AGE_RANGES.map(({ value, label }) => (
                     <button
@@ -161,7 +161,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Gender</label>
                 <div className="grid grid-cols-4 gap-2">
                   {GENDERS.map(({ value, label }) => (
                     <button
@@ -194,10 +194,10 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
         {/* Step 1: Goal Selection */}
         {step === 1 && (
-          <div className="bg-white rounded-2xl shadow-lg p-8 animate-fadeIn">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 animate-fadeIn">
             <div className="text-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-1">Choose Your Goals</h2>
-              <p className="text-gray-500">Pick the goals you&apos;d like to track daily. You can always change these later.</p>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">Choose Your Goals</h2>
+              <p className="text-gray-500 dark:text-gray-400">Pick the goals you&apos;d like to track daily. You can always change these later.</p>
             </div>
 
             <div className="space-y-6 max-h-[50vh] overflow-y-auto pr-2">
@@ -209,7 +209,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                     <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">
                       {CATEGORY_LABELS[category]}
                     </h3>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {categoryGoals.map(s => {
                         const selected = selectedGoalIds.has(s.id);
                         return (
@@ -222,12 +222,12 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                                 : CATEGORY_COLORS[category] + ' hover:shadow-sm'
                             }`}
                           >
-                            <span className="text-xl">{s.icon}</span>
+                            <span className="text-xl flex-shrink-0">{s.icon}</span>
                             <div className="flex-1 min-w-0">
-                              <div className={`font-medium text-sm truncate ${selected ? 'text-white' : ''}`}>{s.name}</div>
-                              <div className={`text-xs truncate ${selected ? 'text-white/80' : 'opacity-70'}`}>{s.target}</div>
+                              <div className={`font-medium text-sm ${selected ? 'text-white' : ''}`}>{s.name}</div>
+                              <div className={`text-xs ${selected ? 'text-white/80' : 'opacity-70'}`}>{s.target}</div>
                             </div>
-                            {selected && <Check size={18} />}
+                            {selected && <Check size={18} className="flex-shrink-0" />}
                           </button>
                         );
                       })}
@@ -240,7 +240,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               {customGoals.filter(g => g.category === 'custom').length > 0 && (
                 <div>
                   <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Custom</h3>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {customGoals.map(s => {
                       const selected = selectedGoalIds.has(s.id);
                       return (
@@ -253,9 +253,9 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                               : 'bg-gray-100 text-gray-700 border-gray-300 hover:shadow-sm'
                           }`}
                         >
-                          <span className="text-xl">{s.icon}</span>
+                          <span className="text-xl flex-shrink-0">{s.icon}</span>
                           <div className="flex-1 min-w-0">
-                            <div className={`font-medium text-sm truncate ${selected ? 'text-white' : ''}`}>{s.name}</div>
+                            <div className={`font-medium text-sm ${selected ? 'text-white' : ''}`}>{s.name}</div>
                           </div>
                           {selected && <Check size={18} />}
                           <button
@@ -288,7 +288,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 onChange={e => setCustomGoalName(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && addCustomGoal()}
                 placeholder="Add your own goal..."
-                className="flex-1 px-4 py-2 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none text-sm text-gray-900"
+                className="flex-1 px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none text-sm text-gray-900 dark:text-white"
               />
               <button
                 onClick={addCustomGoal}
@@ -322,11 +322,11 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
         {/* Step 2: Confirmation */}
         {step === 2 && (
-          <div className="bg-white rounded-2xl shadow-lg p-8 animate-fadeIn">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 animate-fadeIn">
             <div className="text-center mb-6">
               <span className="text-4xl mb-3 block">🚀</span>
-              <h2 className="text-2xl font-bold text-gray-900 mb-1">You&apos;re all set, {name.trim()}!</h2>
-              <p className="text-gray-500">Here are the goals you&apos;ll be tracking:</p>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">You&apos;re all set, {name.trim()}!</h2>
+              <p className="text-gray-500 dark:text-gray-400">Here are the goals you&apos;ll be tracking:</p>
             </div>
 
             <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-2">
@@ -335,10 +335,10 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 .map(s => (
                   <div
                     key={s.id}
-                    className="flex items-center gap-3 px-4 py-3 bg-gray-50 rounded-xl"
+                    className="flex items-center gap-3 px-4 py-3 bg-gray-50 dark:bg-gray-700 rounded-xl"
                   >
                     <span className="text-xl">{s.icon}</span>
-                    <span className="font-medium text-gray-900">{s.name}</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{s.name}</span>
                     <span className="ml-auto text-xs text-gray-400 capitalize">{s.category}</span>
                   </div>
                 ))}
