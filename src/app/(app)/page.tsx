@@ -22,6 +22,11 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Mobile: condensed week + streaks above tracker */}
+      <div className="lg:hidden mb-6">
+        <StreakSidebar data={data} compact />
+      </div>
+
       <div className="grid lg:grid-cols-[1fr_320px] gap-6">
         <DailyTracker
           data={data}

@@ -7,13 +7,13 @@ import { getStreakForGoal, getCompletionRate, getDailyScore } from '@/lib/storag
 
 interface StreakSidebarProps {
   data: AppData;
+  compact?: boolean;
 }
 
-export default function StreakSidebar({ data }: StreakSidebarProps) {
+export default function StreakSidebar({ data, compact = false }: StreakSidebarProps) {
   const activeGoals = data.goals.filter(g => g.active);
   const today = format(new Date(), 'yyyy-MM-dd');
 
-  // Best streaks
   const streaks = activeGoals.map(g => ({
     goal: g,
     streak: getStreakForGoal(data, g.id),
@@ -21,7 +21,6 @@ export default function StreakSidebar({ data }: StreakSidebarProps) {
     rate30: getCompletionRate(data, g.id, 30),
   })).sort((a, b) => b.streak - a.streak);
 
-  // Last 7 days scores
   const weekScores = Array.from({ length: 7 }, (_, i) => {
     const d = subDays(new Date(), 6 - i);
     const dateStr = format(d, 'yyyy-MM-dd');
@@ -33,9 +32,61 @@ export default function StreakSidebar({ data }: StreakSidebarProps) {
   });
 
   const avgScore = weekScores.reduce((a, b) => a + b.score, 0) / 7;
-
-  // Overall daily score
   const todayScore = getDailyScore(data, today);
+
+  if (compact) {
+    const topStreaks = streaks.filter(s => s.streak > 0).slice(0, 4);
+    return (
+      <div className="space-y-3">
+        {/* Week at a Glance — horizontal */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm border border-gray-100 dark:border-gray-700">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1.5">
+              <Calendar size={14} className="text-blue-500" />
+              <span className="font-semibold text-gray-900 dark:text-white text-xs">This Week</span>
+            </div>
+            <span className="text-xs text-gray-500 dark:text-gray-400">Avg: <span className="font-semibold">{Math.round(avgScore)}%</span></span>
+          </div>
+          <div className="flex gap-1">
+            {weekScores.map(({ day, score, date }) => (
+              <div key={date} className="flex-1 text-center">
+                <div className="text-[10px] text-gray-500 dark:text-gray-400 mb-0.5">{day}</div>
+                <div
+                  className={`w-full aspect-square rounded-md flex items-center justify-center text-[10px] font-bold ${
+                    score >= 80
+                      ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300'
+                      : score >= 50
+                      ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
+                      : score > 0
+                      ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-400'
+                  }`}
+                >
+                  {score > 0 ? `${score}` : '—'}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Top Streaks — inline */}
+        {topStreaks.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {topStreaks.map(({ goal, streak }) => (
+              <div
+                key={goal.id}
+                className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg px-2.5 py-1.5"
+              >
+                <span className="text-sm">{goal.icon}</span>
+                <Flame size={12} className="text-orange-500" />
+                <span className="text-xs font-bold text-orange-500">{streak}d</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

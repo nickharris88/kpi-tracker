@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { Plus, Trash2, Edit3, Check, X, Sparkles, CalendarDays } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Plus, Trash2, Edit3, Check, X, Sparkles, CalendarDays, Download, Upload } from 'lucide-react';
+import { AppData } from '@/lib/types';
 import { Goal, GoalSchedule, CATEGORY_COLORS, CATEGORY_LABELS, DAY_LABELS_SINGLE, getScheduleLabel } from '@/lib/types';
 import { useAppData } from '@/app/providers';
 import { getSuggestedGoals, GoalSuggestion, suggestionToGoal } from '@/lib/goal-suggestions';
@@ -10,7 +11,7 @@ const CATEGORY_OPTIONS = ['fitness', 'nutrition', 'learning', 'wellbeing', 'cust
 const ICON_OPTIONS = ['🎯', '💪', '🏋️', '🦵', '🏃', '💊', '🥣', '🥗', '🍽️', '😊', '📚', '🇪🇸', '🧘', '💤', '💧', '🎨', '🎵', '📝', '🧠', '⭐'];
 
 export default function GoalsPage() {
-  const { data, addGoal, updateGoal, removeGoal } = useAppData();
+  const { data, addGoal, updateGoal, removeGoal, importData } = useAppData();
   const [showAdd, setShowAdd] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -252,6 +253,95 @@ export default function GoalsPage() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Data Management */}
+      <DataManagement data={data} onImport={importData} />
+    </div>
+  );
+}
+
+function DataManagement({ data, onImport }: { data: AppData; onImport: (d: AppData) => void }) {
+  const [showSection, setShowSection] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importSuccess, setImportSuccess] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleExport = () => {
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `kpi-tracker-backup-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportError(null);
+    setImportSuccess(false);
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const imported = JSON.parse(ev.target?.result as string) as AppData;
+        if (!imported.profile || !imported.goals || !imported.entries || !imported.settings) {
+          setImportError('Invalid file: missing required fields (profile, goals, entries, settings).');
+          return;
+        }
+        onImport(imported);
+        setImportSuccess(true);
+        setTimeout(() => setImportSuccess(false), 3000);
+      } catch {
+        setImportError('Could not parse file. Please select a valid KPI Tracker JSON backup.');
+      }
+    };
+    reader.readAsText(file);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  return (
+    <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+      <button
+        onClick={() => setShowSection(!showSection)}
+        className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 font-medium"
+      >
+        {showSection ? '▾' : '▸'} Data Management
+      </button>
+      {showSection && (
+        <div className="mt-4 bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 space-y-4">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Export your data as a JSON backup, or import a previous backup.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={handleExport}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              <Download size={16} />
+              Export Data
+            </button>
+            <label className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors cursor-pointer">
+              <Upload size={16} />
+              Import Data
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                onChange={handleImport}
+                className="hidden"
+              />
+            </label>
+          </div>
+          {importError && <p className="text-sm text-red-500">{importError}</p>}
+          {importSuccess && <p className="text-sm text-emerald-500">Data imported successfully!</p>}
+          <p className="text-xs text-gray-400 dark:text-gray-500">
+            {Object.keys(data.entries).length} days tracked &middot; {data.goals.length} goals
+          </p>
         </div>
       )}
     </div>

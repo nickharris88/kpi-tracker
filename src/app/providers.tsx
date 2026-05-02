@@ -27,6 +27,8 @@ interface AppContextType {
   removeGoal: (goalId: string) => void;
   toggleDarkMode: () => void;
   updateSharing: (sharing: SharingConfig) => void;
+  updateSettings: (settings: Partial<AppData['settings']>) => void;
+  importData: (data: AppData) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -387,6 +389,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     removeGoal: (goalId) => persist(removeGoalHelper(data, goalId)),
     toggleDarkMode: () => persist(toggleDarkModeHelper(data)),
     updateSharing: (sharing) => persist({ ...data, sharing }),
+    updateSettings: (settings) => persist({ ...data, settings: { ...data.settings, ...settings } }),
+    importData: (imported) => persist(imported),
   };
 
   return <AppContext.Provider value={ctx}>{children}</AppContext.Provider>;

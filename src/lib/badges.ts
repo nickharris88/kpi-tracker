@@ -1,6 +1,6 @@
 'use client';
 
-import { AppData } from './types';
+import { AppData, isGoalScheduledForDate } from './types';
 import { getDailyScore, getStreakForGoal } from './storage';
 
 export interface BadgeDefinition {
@@ -46,9 +46,9 @@ export const BADGE_DEFINITIONS: BadgeDefinition[] = [
   {
     id: 'perfect-day',
     name: 'Perfect Day',
-    description: '100% score in a single day',
+    description: 'Rated every goal and scored 100%',
     icon: '\uD83D\uDCAF',
-    hint: 'Rate every active goal green in one day',
+    hint: 'Rate every scheduled goal and get them all green',
   },
   {
     id: 'perfect-week',
@@ -81,9 +81,9 @@ export const BADGE_DEFINITIONS: BadgeDefinition[] = [
   {
     id: 'all-green',
     name: 'All Green',
-    description: 'Rated every goal green in one day',
+    description: 'All active goals green \u2014 including unscheduled ones',
     icon: '\uD83C\uDF08',
-    hint: 'Get green on every single active goal in one day',
+    hint: 'Get green on every single active goal in one day, even those not scheduled',
   },
   {
     id: 'comeback-kid',
@@ -116,11 +116,10 @@ export function checkBadges(data: AppData): Badge[] {
 
     switch (badgeId) {
       case 'first-flame': {
-        // Any entry with at least one rating
         for (const date of entryDates) {
           const entry = data.entries[date];
           if (entry && Object.values(entry.ratings).some(r => r !== null && r !== undefined)) {
-            return { earned: true, earnedDate: todayStr };
+            return { earned: true, earnedDate: date };
           }
         }
         return { earned: false };
@@ -145,19 +144,27 @@ export function checkBadges(data: AppData): Badge[] {
       }
 
       case 'perfect-day': {
+        // All scheduled goals must be rated, and all green
         for (const date of entryDates) {
-          if (getDailyScore(data, date) === 100 && activeGoals.length > 0) {
-            return { earned: true, earnedDate: todayStr };
+          const entry = data.entries[date];
+          if (!entry) continue;
+          const dateObj = new Date(date + 'T00:00:00');
+          const scheduled = activeGoals.filter(g => isGoalScheduledForDate(g, dateObj));
+          if (scheduled.length === 0) continue;
+          const allRated = scheduled.every(g => entry.ratings[g.id] !== null && entry.ratings[g.id] !== undefined);
+          const allGreen = scheduled.every(g => entry.ratings[g.id] === 'green');
+          if (allRated && allGreen) {
+            return { earned: true, earnedDate: date };
           }
         }
         return { earned: false };
       }
 
       case 'perfect-week': {
-        // Check for 7 consecutive days of 100% score
         for (let i = 0; i <= entryDates.length - 7; i++) {
           let perfect = true;
           const startDate = new Date(entryDates[i]);
+          let lastDate = entryDates[i];
           for (let d = 0; d < 7; d++) {
             const checkDate = new Date(startDate);
             checkDate.setDate(checkDate.getDate() + d);
@@ -166,9 +173,10 @@ export function checkBadges(data: AppData): Badge[] {
               perfect = false;
               break;
             }
+            lastDate = dateStr;
           }
           if (perfect && activeGoals.length > 0) {
-            return { earned: true, earnedDate: todayStr };
+            return { earned: true, earnedDate: lastDate };
           }
         }
         return { earned: false };
@@ -220,20 +228,20 @@ export function checkBadges(data: AppData): Badge[] {
       }
 
       case 'all-green': {
+        // All active goals green — even ones not scheduled for that day
         if (activeGoals.length === 0) return { earned: false };
         for (const date of entryDates) {
           const entry = data.entries[date];
           if (!entry) continue;
           const allGreen = activeGoals.every(g => entry.ratings[g.id] === 'green');
           if (allGreen) {
-            return { earned: true, earnedDate: todayStr };
+            return { earned: true, earnedDate: date };
           }
         }
         return { earned: false };
       }
 
       case 'comeback-kid': {
-        // Got green after 3+ consecutive days of red on any goal
         for (const goal of data.goals) {
           const sortedDates = Object.keys(data.entries).sort();
           let redStreak = 0;
@@ -242,7 +250,7 @@ export function checkBadges(data: AppData): Badge[] {
             if (rating === 'red') {
               redStreak++;
             } else if (rating === 'green' && redStreak >= 3) {
-              return { earned: true, earnedDate: todayStr };
+              return { earned: true, earnedDate: date };
             } else {
               redStreak = 0;
             }

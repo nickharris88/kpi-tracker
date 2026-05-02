@@ -172,11 +172,13 @@ export function generateShareSummary(data: AppData): {
   const todayStr = today.toISOString().split('T')[0];
   const overallScore = getDailyScore(data, todayStr);
 
-  // Best overall streak (consecutive days with score > 0)
+  // Best overall streak (consecutive days with score > 0, skipping days with no scheduled goals)
   let streak = 0;
   for (let i = 0; i < 365; i++) {
     const d = new Date(today);
     d.setDate(d.getDate() - i);
+    const scheduledGoals = activeGoals.filter(g => isGoalScheduledForDate(g, d));
+    if (scheduledGoals.length === 0) continue;
     const ds = d.toISOString().split('T')[0];
     if (getDailyScore(data, ds) > 0) streak++;
     else break;

@@ -86,6 +86,8 @@ export interface AppData {
   settings: {
     darkMode: boolean;
     target5kTime: number; // seconds (20 min = 1200)
+    runTargetDistance?: number; // km, defaults to 5
+    runTargetLabel?: string; // e.g. "5K", "10K", defaults to "5K"
   };
   badges?: Record<string, { earned: boolean; earnedDate: string }>;
   sharing?: SharingConfig;

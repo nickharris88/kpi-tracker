@@ -2,16 +2,19 @@
 
 import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
-import { Timer, TrendingDown, Trophy, Plus, Target } from 'lucide-react';
+import { Timer, TrendingDown, Trophy, Plus, Target, Settings } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { useAppData } from '@/app/providers';
 
 export default function RunTrackerPage() {
-  const { data, setRunData } = useAppData();
+  const { data, setRunData, updateSettings } = useAppData();
   const [showAdd, setShowAdd] = useState(false);
-  const [newRun, setNewRun] = useState({ date: format(new Date(), 'yyyy-MM-dd'), minutes: '', seconds: '', distance: '5' });
+  const [showSettings, setShowSettings] = useState(false);
+  const [newRun, setNewRun] = useState({ date: format(new Date(), 'yyyy-MM-dd'), minutes: '', seconds: '', distance: String(data.settings.runTargetDistance || 5) });
 
-  const target5kTime = data.settings.target5kTime; // 1200 seconds = 20 min
+  const targetTime = data.settings.target5kTime;
+  const targetDistance = data.settings.runTargetDistance || 5;
+  const targetLabel = data.settings.runTargetLabel || '5K';
 
   // All runs sorted by date
   const runs = useMemo(() => {
@@ -54,8 +57,8 @@ export default function RunTrackerPage() {
   };
 
   const progressToTarget = latestRun
-    ? Math.min(100, Math.round(((runs[0]?.time || latestRun.time) - target5kTime) === 0 ? 100 :
-      ((runs[0]?.time || latestRun.time) - latestRun.time) / ((runs[0]?.time || latestRun.time) - target5kTime) * 100))
+    ? Math.min(100, Math.round(((runs[0]?.time || latestRun.time) - targetTime) === 0 ? 100 :
+      ((runs[0]?.time || latestRun.time) - latestRun.time) / ((runs[0]?.time || latestRun.time) - targetTime) * 100))
     : 0;
 
   return (
@@ -63,19 +66,42 @@ export default function RunTrackerPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">5K Run Tracker</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{targetLabel} Run Tracker</h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm">
-            Target: {formatTime(target5kTime)} for 5K
+            Target: {formatTime(targetTime)} for {targetLabel}
           </p>
         </div>
-        <button
-          onClick={() => setShowAdd(!showAdd)}
-          className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-        >
-          <Plus size={18} />
-          Log Run
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowSettings(!showSettings)}
+            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            title="Settings"
+          >
+            <Settings size={18} />
+          </button>
+          <button
+            onClick={() => setShowAdd(!showAdd)}
+            className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+          >
+            <Plus size={18} />
+            Log Run
+          </button>
+        </div>
       </div>
+
+      {/* Settings Panel */}
+      {showSettings && (
+        <RunSettings
+          targetTime={targetTime}
+          targetDistance={targetDistance}
+          targetLabel={targetLabel}
+          onSave={(time, distance, label) => {
+            updateSettings({ target5kTime: time, runTargetDistance: distance, runTargetLabel: label });
+            setShowSettings(false);
+          }}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
 
       {/* Add Run Form */}
       {showAdd && (
@@ -181,9 +207,9 @@ export default function RunTrackerPage() {
       <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-6 text-white shadow-lg">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <p className="text-emerald-100 text-sm font-medium">Progress to 20:00 Target</p>
+            <p className="text-emerald-100 text-sm font-medium">Progress to {formatTime(targetTime)} {targetLabel}</p>
             <p className="text-3xl font-bold">
-              {latestRun ? formatTime(latestRun.time) : '—'} → {formatTime(target5kTime)}
+              {latestRun ? formatTime(latestRun.time) : '—'} → {formatTime(targetTime)}
             </p>
           </div>
           <div className="text-5xl">🏃</div>
@@ -195,10 +221,10 @@ export default function RunTrackerPage() {
           />
         </div>
         <p className="text-emerald-100 text-sm mt-2">
-          {latestRun && latestRun.time <= target5kTime
+          {latestRun && latestRun.time <= targetTime
             ? 'Target achieved! Keep pushing! 🎉'
             : latestRun
-            ? `${formatTime(latestRun.time - target5kTime)} to go`
+            ? `${formatTime(latestRun.time - targetTime)} to go`
             : 'Log your first run to start tracking'}
         </p>
       </div>
@@ -220,7 +246,7 @@ export default function RunTrackerPage() {
                 contentStyle={{ backgroundColor: '#1F2937', border: 'none', borderRadius: '8px', color: '#fff' }}
                 formatter={(value) => [formatTime(value as number), 'Time']}
               />
-              <ReferenceLine y={target5kTime} stroke="#10B981" strokeDasharray="5 5" label={{ value: 'Target', fill: '#10B981', fontSize: 12 }} />
+              <ReferenceLine y={targetTime} stroke="#10B981" strokeDasharray="5 5" label={{ value: 'Target', fill: '#10B981', fontSize: 12 }} />
               <Line type="monotone" dataKey="time" stroke="#3B82F6" strokeWidth={2} dot={{ fill: '#3B82F6', r: 4 }} activeDot={{ r: 6 }} />
             </LineChart>
           </ResponsiveContainer>
@@ -242,7 +268,7 @@ export default function RunTrackerPage() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className={`text-lg font-bold ${run.time <= target5kTime ? 'text-emerald-500' : 'text-gray-900 dark:text-white'}`}>
+                  <p className={`text-lg font-bold ${run.time <= targetTime ? 'text-emerald-500' : 'text-gray-900 dark:text-white'}`}>
                     {formatTime(run.time)}
                   </p>
                   <p className="text-sm text-gray-500">{formatTime(Math.round(run.pace))}/km</p>
@@ -257,9 +283,109 @@ export default function RunTrackerPage() {
         <div className="text-center py-12 text-gray-400">
           <Timer size={48} className="mx-auto mb-4 opacity-50" />
           <p className="text-lg font-medium">No runs logged yet</p>
-          <p className="text-sm">Click &quot;Log Run&quot; to start tracking your 5K progress</p>
+          <p className="text-sm">Click &quot;Log Run&quot; to start tracking your {targetLabel} progress</p>
         </div>
       )}
+    </div>
+  );
+}
+
+function RunSettings({ targetTime, targetDistance, targetLabel, onSave, onClose }: {
+  targetTime: number;
+  targetDistance: number;
+  targetLabel: string;
+  onSave: (time: number, distance: number, label: string) => void;
+  onClose: () => void;
+}) {
+  const [mins, setMins] = useState(String(Math.floor(targetTime / 60)));
+  const [secs, setSecs] = useState(String(targetTime % 60));
+  const [dist, setDist] = useState(String(targetDistance));
+  const [label, setLabel] = useState(targetLabel);
+
+  const presets = [
+    { label: '5K', distance: 5, time: 1200 },
+    { label: '10K', distance: 10, time: 2700 },
+    { label: 'Half Marathon', distance: 21.1, time: 5400 },
+  ];
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 space-y-4">
+      <h3 className="font-semibold text-gray-900 dark:text-white">Run Settings</h3>
+      <div className="flex flex-wrap gap-2 mb-2">
+        {presets.map(p => (
+          <button
+            key={p.label}
+            onClick={() => {
+              setLabel(p.label);
+              setDist(String(p.distance));
+              setMins(String(Math.floor(p.time / 60)));
+              setSecs(String(p.time % 60));
+            }}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              label === p.label
+                ? 'bg-blue-500 text-white'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+            }`}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+      <div className="grid grid-cols-4 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Label</label>
+          <input
+            type="text"
+            value={label}
+            onChange={e => setLabel(e.target.value)}
+            placeholder="5K"
+            className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Distance (km)</label>
+          <input
+            type="number"
+            value={dist}
+            onChange={e => setDist(e.target.value)}
+            step="0.1"
+            min="0"
+            className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Target Min</label>
+          <input
+            type="number"
+            value={mins}
+            onChange={e => setMins(e.target.value)}
+            min="0"
+            className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Target Sec</label>
+          <input
+            type="number"
+            value={secs}
+            onChange={e => setSecs(e.target.value)}
+            min="0"
+            max="59"
+            className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white text-sm"
+          />
+        </div>
+      </div>
+      <div className="flex gap-2 justify-end">
+        <button onClick={onClose} className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-sm">
+          Cancel
+        </button>
+        <button
+          onClick={() => onSave((parseInt(mins) || 0) * 60 + (parseInt(secs) || 0), parseFloat(dist) || 5, label || '5K')}
+          className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium"
+        >
+          Save Settings
+        </button>
+      </div>
     </div>
   );
 }
