@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Trash2, GripVertical, Edit3, Check, X, Sparkles, CalendarDays } from 'lucide-react';
+import { Plus, Trash2, Edit3, Check, X, Sparkles, CalendarDays } from 'lucide-react';
 import { Goal, GoalSchedule, CATEGORY_COLORS, CATEGORY_LABELS, DAY_LABELS_SINGLE, getScheduleLabel } from '@/lib/types';
 import { useAppData } from '@/app/providers';
 import { getSuggestedGoals, GoalSuggestion, suggestionToGoal } from '@/lib/goal-suggestions';
@@ -345,6 +345,7 @@ function GoalRow({
   const [editTarget, setEditTarget] = useState(goal.target || '');
   const [editSchedule, setEditSchedule] = useState<GoalSchedule>(goal.schedule || 'daily');
   const [editScheduleDays, setEditScheduleDays] = useState<number[]>(goal.scheduleDays || []);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   if (isEditing) {
     return (
@@ -399,7 +400,6 @@ function GoalRow({
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between group hover:shadow-md transition-shadow">
       <div className="flex items-center gap-3">
-        <GripVertical size={16} className="text-gray-300 dark:text-gray-600" />
         <span className="text-xl">{goal.icon}</span>
         <div>
           <p className="font-medium text-gray-900 dark:text-white">{goal.name}</p>
@@ -426,15 +426,29 @@ function GoalRow({
         </div>
       </div>
       <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-        <button onClick={onEdit} className="p-1.5 text-gray-400 hover:text-blue-500 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
-          <Edit3 size={16} />
-        </button>
-        <button onClick={onToggleActive} className="p-1.5 text-gray-400 hover:text-amber-500 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700" title="Deactivate">
-          <X size={16} />
-        </button>
-        <button onClick={onRemove} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
-          <Trash2 size={16} />
-        </button>
+        {confirmDelete ? (
+          <div className="flex items-center gap-1 bg-red-50 dark:bg-red-900/20 rounded-lg px-2 py-1">
+            <span className="text-xs text-red-600 dark:text-red-400 font-medium">Delete?</span>
+            <button onClick={() => { onRemove(); setConfirmDelete(false); }} className="p-1 text-red-500 hover:text-red-700 rounded" title="Confirm delete">
+              <Check size={14} />
+            </button>
+            <button onClick={() => setConfirmDelete(false)} className="p-1 text-gray-400 hover:text-gray-600 rounded" title="Cancel">
+              <X size={14} />
+            </button>
+          </div>
+        ) : (
+          <>
+            <button onClick={onEdit} className="p-1.5 text-gray-400 hover:text-blue-500 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+              <Edit3 size={16} />
+            </button>
+            <button onClick={onToggleActive} className="p-1.5 text-gray-400 hover:text-amber-500 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700" title="Deactivate">
+              <X size={16} />
+            </button>
+            <button onClick={() => setConfirmDelete(true)} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+              <Trash2 size={16} />
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { Moon, Sun } from 'lucide-react';
-import { onAuthStateChanged, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, User } from 'firebase/auth';
+import { onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, User } from 'firebase/auth';
 import { getAuthInstance, getGoogleProvider, isFirebaseConfigured } from '@/lib/firebase';
 import { AppData, RAGStatus, Goal, UserProfile, SharingConfig } from '@/lib/types';
 import { loadUserData, saveUserData, subscribeToUserData } from '@/lib/firestore-storage';
@@ -18,6 +18,7 @@ interface AppContextType {
   user: User | null;
   signIn: () => Promise<void>;
   signInWithEmail: (email: string, password: string, isNew: boolean) => Promise<string | null>;
+  signOut: () => Promise<void>;
   setGoalRating: (date: string, goalId: string, status: RAGStatus) => void;
   setDayNotes: (date: string, notes: string) => void;
   setRunData: (date: string, runTime?: number, runDistance?: number) => void;
@@ -279,6 +280,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const persist = useCallback((newData: AppData) => {
     setData(newData);
+    // Keep localStorage dark mode preference in sync
+    localStorage.setItem('kpi-dark-mode', String(newData.settings.darkMode));
     if (user && firebaseAvailable) {
       saveUserData(user.uid, newData);
     } else {
@@ -319,6 +322,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (code === 'auth/weak-password') return 'Password must be at least 6 characters.';
       if (code === 'auth/invalid-email') return 'Please enter a valid email address.';
       return 'Something went wrong. Please try again.';
+    }
+  }, []);
+
+  const handleSignOut = useCallback(async () => {
+    try {
+      await firebaseSignOut(getAuthInstance());
+      setData(getDefaultData());
+      setUser(null);
+    } catch (err) {
+      console.error('Sign-out failed:', err);
     }
   }, []);
 
@@ -365,6 +378,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     user,
     signIn,
     signInWithEmail,
+    signOut: handleSignOut,
     setGoalRating: (date, goalId, status) => persist(setRating(data, date, goalId, status)),
     setDayNotes: (date, notes) => persist(setNotes(data, date, notes)),
     setRunData: (date, runTime, runDistance) => persist(setRunDataHelper(data, date, runTime, runDistance)),

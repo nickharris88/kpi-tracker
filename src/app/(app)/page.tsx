@@ -10,14 +10,16 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-7xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-2">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
             {data.profile?.name ? `Hey ${data.profile.name}` : 'Daily Dashboard'}
           </h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm">Track your goals and rate your day</p>
         </div>
-        <RAGLegend />
+        <div className="hidden sm:block">
+          <RAGLegend />
+        </div>
       </div>
 
       <div className="grid lg:grid-cols-[1fr_320px] gap-6">

@@ -425,15 +425,6 @@ export default function SharePage() {
         </pre>
       </div>
 
-      {/* Firestore Security Rules Note */}
-      {user && sharingEnabled && (
-        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
-          <p className="text-sm text-amber-800 dark:text-amber-200 font-medium mb-1">Firestore Security Rules</p>
-          <p className="text-xs text-amber-600 dark:text-amber-300">
-            Ensure your Firestore rules allow public reads on <code className="bg-amber-100 dark:bg-amber-900/40 px-1 py-0.5 rounded">/shared/&#123;code&#125;</code> while restricting writes to the owner. See the project README for the recommended rules.
-          </p>
-        </div>
-      )}
     </div>
   );
 }
