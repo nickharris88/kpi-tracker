@@ -2,12 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Target, BarChart3, Timer, ClipboardCheck, Share2, Trophy, Moon, Sun, LogOut } from 'lucide-react';
+import { LayoutDashboard, Target, BarChart3, Timer, ClipboardCheck, Share2, Trophy, Moon, Sun, LogOut, UserCircle } from 'lucide-react';
 
 interface NavigationProps {
   darkMode: boolean;
   onToggleDarkMode: () => void;
   onSignOut?: () => void;
+  showAccount?: boolean;
 }
 
 const navItems = [
@@ -20,7 +21,7 @@ const navItems = [
   { href: '/share', label: 'Share', icon: Share2 },
 ];
 
-export default function Navigation({ darkMode, onToggleDarkMode, onSignOut }: NavigationProps) {
+export default function Navigation({ darkMode, onToggleDarkMode, onSignOut, showAccount }: NavigationProps) {
   const pathname = usePathname();
 
   return (
@@ -61,6 +62,16 @@ export default function Navigation({ darkMode, onToggleDarkMode, onSignOut }: Na
             >
               {darkMode ? <Sun size={18} /> : <Moon size={18} />}
             </button>
+            {showAccount && (
+              <Link
+                href="/account"
+                className="p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                aria-label="Account settings"
+                title="Account"
+              >
+                <UserCircle size={18} />
+              </Link>
+            )}
             {onSignOut && (
               <button
                 onClick={onSignOut}

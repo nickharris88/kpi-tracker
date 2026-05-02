@@ -1,6 +1,7 @@
 'use client';
 
 import { doc, getDoc, setDoc, onSnapshot, Unsubscribe, deleteDoc } from 'firebase/firestore';
+import { deleteUser } from 'firebase/auth';
 import { getDbInstance } from './firebase';
 import { AppData, SharedDashboard } from './types';
 
@@ -83,6 +84,26 @@ export async function deleteSharedDashboard(shareCode: string): Promise<void> {
     await deleteDoc(getSharedDocRef(shareCode));
   } catch (err) {
     console.error('Error deleting shared dashboard:', err);
+  }
+}
+
+export async function deleteUserAccount(uid: string, shareCode?: string): Promise<void> {
+  try {
+    // Delete shared dashboard if it exists
+    if (shareCode) {
+      await deleteDoc(getSharedDocRef(shareCode));
+    }
+    // Delete user data document
+    await deleteDoc(getUserDocRef(uid));
+    // Delete Firebase Auth account
+    const { getAuthInstance } = await import('./firebase');
+    const auth = getAuthInstance();
+    if (auth.currentUser) {
+      await deleteUser(auth.currentUser);
+    }
+  } catch (err) {
+    console.error('Error deleting user account:', err);
+    throw err;
   }
 }
 

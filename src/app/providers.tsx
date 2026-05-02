@@ -5,7 +5,7 @@ import { Moon, Sun } from 'lucide-react';
 import { onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, User } from 'firebase/auth';
 import { getAuthInstance, getGoogleProvider, isFirebaseConfigured } from '@/lib/firebase';
 import { AppData, RAGStatus, Goal, UserProfile, SharingConfig } from '@/lib/types';
-import { loadUserData, saveUserData, subscribeToUserData } from '@/lib/firestore-storage';
+import { loadUserData, saveUserData, subscribeToUserData, deleteUserAccount } from '@/lib/firestore-storage';
 import {
   loadData, saveData, setRating, setNotes, setRunData as setRunDataHelper,
   addGoal as addGoalHelper, updateGoal as updateGoalHelper, removeGoal as removeGoalHelper,
@@ -29,6 +29,7 @@ interface AppContextType {
   updateSharing: (sharing: SharingConfig) => void;
   updateSettings: (settings: Partial<AppData['settings']>) => void;
   importData: (data: AppData) => void;
+  deleteAccount: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -337,6 +338,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const handleDeleteAccount = useCallback(async () => {
+    if (!user) return;
+    const shareCode = data?.sharing?.shareCode;
+    await deleteUserAccount(user.uid, shareCode);
+    setData(getDefaultData());
+    setUser(null);
+  }, [user, data]);
+
   if (!authReady || data === null) {
     return (
       <div className={earlyDarkMode ? 'dark' : ''}>
@@ -391,6 +400,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     updateSharing: (sharing) => persist({ ...data, sharing }),
     updateSettings: (settings) => persist({ ...data, settings: { ...data.settings, ...settings } }),
     importData: (imported) => persist(imported),
+    deleteAccount: handleDeleteAccount,
   };
 
   return <AppContext.Provider value={ctx}>{children}</AppContext.Provider>;

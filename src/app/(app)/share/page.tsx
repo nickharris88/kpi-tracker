@@ -50,14 +50,14 @@ export default function SharePage() {
       if (shareCode) {
         await deleteSharedDashboard(shareCode);
       }
-      updateSharing({ enabled: false, shareCode: '', sharedWith: [] });
+      updateSharing({ enabled: false, shareCode: '' });
     } else {
       // Enable sharing
       const code = generateShareCode();
-      updateSharing({ enabled: true, shareCode: code, sharedWith: [] });
+      updateSharing({ enabled: true, shareCode: code });
       // The shared dashboard will be created on next persist via saveUserData
       if (user) {
-        const newData = { ...data, sharing: { enabled: true, shareCode: code, sharedWith: [] } };
+        const newData = { ...data, sharing: { enabled: true, shareCode: code } };
         await updateSharedDashboard(user.uid, newData);
       }
     }
@@ -68,9 +68,9 @@ export default function SharePage() {
       await deleteSharedDashboard(shareCode);
     }
     const newCode = generateShareCode();
-    updateSharing({ enabled: true, shareCode: newCode, sharedWith: data.sharing?.sharedWith ?? [] });
+    updateSharing({ enabled: true, shareCode: newCode });
     if (user) {
-      const newData = { ...data, sharing: { enabled: true, shareCode: newCode, sharedWith: data.sharing?.sharedWith ?? [] } };
+      const newData = { ...data, sharing: { enabled: true, shareCode: newCode } };
       await updateSharedDashboard(user.uid, newData);
     }
   }, [shareCode, updateSharing, user, data]);

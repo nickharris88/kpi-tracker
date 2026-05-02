@@ -68,7 +68,6 @@ export interface DailyEntry {
 export interface SharingConfig {
   enabled: boolean;
   shareCode: string;
-  sharedWith: string[]; // email addresses of accountability partners
 }
 
 export interface SharedDashboard {
