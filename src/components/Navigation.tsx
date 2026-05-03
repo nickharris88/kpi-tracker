@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Target, BarChart3, Timer, ClipboardCheck, Share2, Trophy, Moon, Sun, LogOut, UserCircle } from 'lucide-react';
+import { LayoutDashboard, Target, BarChart3, Timer, ClipboardCheck, Share2, Trophy, Moon, Sun, LogOut, UserCircle, Users } from 'lucide-react';
 
 interface NavigationProps {
   darkMode: boolean;
@@ -18,6 +18,7 @@ const navItems = [
   { href: '/review', label: 'Review', icon: ClipboardCheck },
   { href: '/run-tracker', label: '5K', icon: Timer },
   { href: '/badges', label: 'Badges', icon: Trophy },
+  { href: '/friends', label: 'Friends', icon: Users },
   { href: '/share', label: 'Share', icon: Share2 },
 ];
 

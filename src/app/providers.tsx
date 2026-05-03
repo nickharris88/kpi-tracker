@@ -6,6 +6,7 @@ import { onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut, create
 import { getAuthInstance, getGoogleProvider, isFirebaseConfigured } from '@/lib/firebase';
 import { AppData, RAGStatus, Goal, UserProfile, SharingConfig } from '@/lib/types';
 import { loadUserData, saveUserData, subscribeToUserData, deleteUserAccount } from '@/lib/firestore-storage';
+import { syncProfile, syncFriendData, deleteSocialData } from '@/lib/social';
 import {
   loadData, saveData, setRating, setNotes, setRunData as setRunDataHelper,
   addGoal as addGoalHelper, updateGoal as updateGoalHelper, removeGoal as removeGoalHelper,
@@ -300,10 +301,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const persist = useCallback((newData: AppData) => {
     setData(newData);
-    // Keep localStorage dark mode preference in sync
     localStorage.setItem('kpi-dark-mode', String(newData.settings.darkMode));
     if (user && firebaseAvailable) {
       saveUserData(user.uid, newData);
+      syncProfile(user.uid, newData);
+      syncFriendData(user.uid, newData);
     } else {
       saveData(newData);
     }
@@ -358,6 +360,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const handleDeleteAccount = useCallback(async () => {
     if (!user) return;
     const shareCode = data?.sharing?.shareCode;
+    await deleteSocialData(user.uid);
     await deleteUserAccount(user.uid, shareCode);
     setData(getDefaultData());
     setUser(null);

@@ -105,6 +105,52 @@ export const DEFAULT_GOALS: Goal[] = [
   { id: 'kindness', name: 'Be a Nice Person', category: 'wellbeing', icon: '😊', target: 'Daily kindness', order: 8, active: true, createdAt: new Date().toISOString() },
 ];
 
+// --- Social types ---
+
+export interface PublicProfile {
+  uid: string;
+  name: string;
+  goalCount: number;
+  currentStreak: number;
+  todayScore: number;
+  updatedAt: string;
+}
+
+export interface Friendship {
+  id: string;
+  participants: string[];
+  initiatorUid: string;
+  initiatorName: string;
+  recipientUid: string;
+  recipientName: string;
+  status: 'pending' | 'accepted' | 'declined';
+  createdAt: string;
+  respondedAt?: string;
+}
+
+export interface FriendData {
+  uid: string;
+  name: string;
+  goals: Goal[];
+  recentScores: { date: string; score: number }[];
+  streaks: { goalName: string; goalIcon: string; streak: number }[];
+  todayScore: number;
+  updatedAt: string;
+}
+
+export interface Cheer {
+  id: string;
+  fromUid: string;
+  fromName: string;
+  toUid: string;
+  date: string;
+  message?: string;
+  emoji: string;
+  createdAt: string;
+}
+
+export const CHEER_EMOJIS = ['🔥', '👏', '💪', '⭐', '❤️', '🎯', '🏆', '🚀'];
+
 export const CATEGORY_COLORS: Record<string, string> = {
   fitness: '#3B82F6',
   nutrition: '#10B981',
