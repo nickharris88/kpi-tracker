@@ -63,6 +63,7 @@ export interface DailyEntry {
   notes: string;
   runTime?: number; // seconds for 5K
   runDistance?: number; // km
+  ratedAt?: string; // ISO timestamp of first rating for this day
 }
 
 export interface SharingConfig {

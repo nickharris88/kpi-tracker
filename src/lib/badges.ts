@@ -183,15 +183,14 @@ export function checkBadges(data: AppData): Badge[] {
       }
 
       case 'early-bird': {
-        // Check if current time is before 9am and there's a rating for today
-        const now = new Date();
-        if (now.getHours() < 9) {
-          const todayEntry = data.entries[todayStr];
-          if (todayEntry && Object.values(todayEntry.ratings).some(r => r !== null && r !== undefined)) {
-            return { earned: true, earnedDate: todayStr };
+        for (const date of entryDates) {
+          const entry = data.entries[date];
+          if (!entry?.ratedAt) continue;
+          const ratedHour = new Date(entry.ratedAt).getHours();
+          if (ratedHour < 9 && Object.values(entry.ratings).some(r => r !== null && r !== undefined)) {
+            return { earned: true, earnedDate: date };
           }
         }
-        // Also check stored badge data (it might have been earned previously)
         return { earned: false };
       }
 

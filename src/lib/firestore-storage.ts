@@ -28,7 +28,7 @@ export async function loadUserData(uid: string): Promise<AppData | null> {
 
 export async function saveUserData(uid: string, data: AppData): Promise<void> {
   try {
-    await setDoc(getUserDocRef(uid), JSON.parse(JSON.stringify(data)));
+    await setDoc(getUserDocRef(uid), JSON.parse(JSON.stringify(data)), { merge: true });
     // If sharing is enabled, update the shared document too
     if (data.sharing?.enabled && data.sharing.shareCode) {
       await updateSharedDashboard(uid, data);

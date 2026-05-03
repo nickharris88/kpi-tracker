@@ -16,6 +16,13 @@ const geistMono = localFont({
 export const metadata: Metadata = {
   title: "KPI Tracker - Personal Goals Dashboard",
   description: "Track your daily goals with RAG status ratings",
+  manifest: "/manifest.json",
+  themeColor: "#3B82F6",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "KPI Tracker",
+  },
 };
 
 export default function RootLayout({

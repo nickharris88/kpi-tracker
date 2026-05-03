@@ -44,7 +44,7 @@ export function getEntry(data: AppData, date: string): DailyEntry {
 export function setRating(data: AppData, date: string, goalId: string, status: RAGStatus): AppData {
   const entry = getEntry(data, date);
   const newRatings = { ...entry.ratings, [goalId]: status };
-  const newEntry = { ...entry, ratings: newRatings };
+  const newEntry = { ...entry, ratings: newRatings, ratedAt: entry.ratedAt || new Date().toISOString() };
   return { ...data, entries: { ...data.entries, [date]: newEntry } };
 }
 

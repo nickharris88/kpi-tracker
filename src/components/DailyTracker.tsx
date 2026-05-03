@@ -212,27 +212,61 @@ export default function DailyTracker({ data, onRatingChange, onNotesChange }: Da
       )}
 
       {/* Notes Section */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
-        <button
-          onClick={() => setShowNotes(!showNotes)}
-          className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors w-full"
-        >
-          <MessageSquare size={18} />
-          <span className="font-medium">Daily Notes</span>
-          {entry.notes && <span className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300 px-2 py-0.5 rounded-full">Has notes</span>}
-        </button>
-        {showNotes && (
-          <textarea
-            value={entry.notes}
-            onChange={(e) => onNotesChange(dateStr, e.target.value)}
-            placeholder="How was your day? Any reflections..."
-            className="mt-3 w-full h-24 bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-sm text-gray-900 dark:text-white placeholder-gray-400 border-0 focus:ring-2 focus:ring-blue-500 resize-none"
-          />
-        )}
-      </div>
+      <NotesSection
+        notes={entry.notes}
+        showNotes={showNotes}
+        onToggle={() => setShowNotes(!showNotes)}
+        onSave={(notes) => onNotesChange(dateStr, notes)}
+      />
 
       {/* Badge Toast */}
       {badgeToast && <BadgeToast badge={badgeToast} onClose={dismissToast} />}
+    </div>
+  );
+}
+
+function NotesSection({ notes, showNotes, onToggle, onSave }: {
+  notes: string;
+  showNotes: boolean;
+  onToggle: () => void;
+  onSave: (notes: string) => void;
+}) {
+  const [localNotes, setLocalNotes] = useState(notes);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    setLocalNotes(notes);
+  }, [notes]);
+
+  const handleBlur = () => {
+    if (localNotes !== notes) {
+      onSave(localNotes);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    }
+  };
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+      <button
+        onClick={onToggle}
+        className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors w-full"
+      >
+        <MessageSquare size={18} />
+        <span className="font-medium">Daily Notes</span>
+        {notes && <span className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300 px-2 py-0.5 rounded-full">Has notes</span>}
+        <span className="flex-1" />
+        {saved && <span className="text-xs text-emerald-500 font-medium">Saved</span>}
+      </button>
+      {showNotes && (
+        <textarea
+          value={localNotes}
+          onChange={(e) => setLocalNotes(e.target.value)}
+          onBlur={handleBlur}
+          placeholder="How was your day? Any reflections..."
+          className="mt-3 w-full h-24 bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-sm text-gray-900 dark:text-white placeholder-gray-400 border-0 focus:ring-2 focus:ring-blue-500 resize-none"
+        />
+      )}
     </div>
   );
 }

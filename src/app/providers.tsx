@@ -11,6 +11,7 @@ import {
   addGoal as addGoalHelper, updateGoal as updateGoalHelper, removeGoal as removeGoalHelper,
   toggleDarkMode as toggleDarkModeHelper,
 } from '@/lib/storage';
+import { checkBadges } from '@/lib/badges';
 import Onboarding from '@/components/Onboarding';
 
 interface AppContextType {
@@ -270,13 +271,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Real-time sync from Firestore
+  // Real-time sync from Firestore — merge entries to prevent data loss
   useEffect(() => {
     if (!user || !firebaseAvailable) return;
     const unsub = subscribeToUserData(user.uid, (remoteData) => {
-      if (remoteData) {
-        setData(remoteData);
-      }
+      if (!remoteData) return;
+      setData(prev => {
+        if (!prev) return remoteData;
+        const mergedEntries = { ...prev.entries };
+        for (const [date, remoteEntry] of Object.entries(remoteData.entries)) {
+          const localEntry = mergedEntries[date];
+          if (!localEntry) {
+            mergedEntries[date] = remoteEntry;
+          } else {
+            mergedEntries[date] = {
+              ...localEntry,
+              ...remoteEntry,
+              ratings: { ...localEntry.ratings, ...remoteEntry.ratings },
+              notes: remoteEntry.notes || localEntry.notes,
+            };
+          }
+        }
+        return { ...remoteData, entries: mergedEntries };
+      });
     });
     return () => unsub();
   }, [user, firebaseAvailable]);
@@ -390,7 +407,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     signIn,
     signInWithEmail,
     signOut: handleSignOut,
-    setGoalRating: (date, goalId, status) => persist(setRating(data, date, goalId, status)),
+    setGoalRating: (date, goalId, status) => {
+      const newData = setRating(data, date, goalId, status);
+      const badges = checkBadges(newData);
+      const earnedBadges: Record<string, { earned: boolean; earnedDate: string }> = {};
+      for (const b of badges) {
+        if (b.earned) earnedBadges[b.id] = { earned: true, earnedDate: b.earnedDate || date };
+      }
+      persist({ ...newData, badges: { ...newData.badges, ...earnedBadges } });
+    },
     setDayNotes: (date, notes) => persist(setNotes(data, date, notes)),
     setRunData: (date, runTime, runDistance) => persist(setRunDataHelper(data, date, runTime, runDistance)),
     addGoal: (goal) => persist(addGoalHelper(data, goal)),
