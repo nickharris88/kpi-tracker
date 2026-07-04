@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import { Users, Search, UserPlus, Check, X, ChevronDown, ChevronUp, Flame, Send, Trophy, Heart } from 'lucide-react';
 import { useAppData } from '@/app/providers';
@@ -21,6 +21,19 @@ export default function FriendsPage() {
   const [sendingTo, setSendingTo] = useState<string | null>(null);
   const [expandedFriend, setExpandedFriend] = useState<string | null>(null);
   const [friendDataMap, setFriendDataMap] = useState<Record<string, FriendData>>({});
+  const [searchFocused, setSearchFocused] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  // Close search dropdown on click outside
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setSearchFocused(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
 
   // Subscribe to friendships and cheers
   useEffect(() => {
@@ -47,12 +60,19 @@ export default function FriendsPage() {
     ...friendships.filter(f => f.status !== 'declined').flatMap(f => f.participants),
   ]);
 
-  const handleSearch = useCallback(async () => {
-    if (!user || searchQuery.trim().length < 2) return;
+  // Debounced live search as user types
+  useEffect(() => {
+    if (!user || searchQuery.trim().length < 2) {
+      setSearchResults([]);
+      return;
+    }
     setSearching(true);
-    const results = await searchProfiles(searchQuery, user.uid);
-    setSearchResults(results);
-    setSearching(false);
+    const timer = setTimeout(async () => {
+      const results = await searchProfiles(searchQuery, user.uid);
+      setSearchResults(results);
+      setSearching(false);
+    }, 300);
+    return () => clearTimeout(timer);
   }, [searchQuery, user]);
 
   const handleSendRequest = async (profile: PublicProfile) => {
@@ -60,7 +80,11 @@ export default function FriendsPage() {
     setSendingTo(profile.uid);
     await sendFriendRequest(user.uid, data.profile.name || 'Anonymous', profile.uid, profile.name);
     setSendingTo(null);
-    setSearchResults(prev => prev.filter(p => p.uid !== profile.uid));
+    setSearchResults(prev => {
+      const remaining = prev.filter(p => p.uid !== profile.uid);
+      if (remaining.length === 0) setSearchQuery('');
+      return remaining;
+    });
   };
 
   const handleExpand = async (friendUid: string) => {
@@ -153,53 +177,63 @@ export default function FriendsPage() {
           <Search size={18} />
           Find Friends
         </h2>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSearch()}
-            placeholder="Search by name..."
-            className="flex-1 px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white"
-          />
-          <button
-            onClick={handleSearch}
-            disabled={searching || searchQuery.trim().length < 2}
-            className="px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:opacity-40 text-white rounded-lg text-sm font-medium transition-colors"
-          >
-            {searching ? 'Searching...' : 'Search'}
-          </button>
-        </div>
-
-        {searchResults.length > 0 && (
-          <div className="mt-4 space-y-2">
-            {searchResults.map(profile => {
-              const connected = alreadyConnected.has(profile.uid);
-              return (
-                <div key={profile.uid} className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-white">{profile.name}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {profile.goalCount} goals &middot; {profile.currentStreak}d streak
-                    </p>
-                  </div>
-                  {connected ? (
-                    <span className="text-xs text-gray-400 px-3 py-1.5">Already connected</span>
-                  ) : (
-                    <button
-                      onClick={() => handleSendRequest(profile)}
-                      disabled={sendingTo === profile.uid}
-                      className="flex items-center gap-1 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
-                    >
-                      <UserPlus size={14} />
-                      {sendingTo === profile.uid ? 'Sending...' : 'Add Friend'}
-                    </button>
-                  )}
-                </div>
-              );
-            })}
+        <div className="relative" ref={searchRef}>
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              onFocus={() => setSearchFocused(true)}
+              placeholder="Search by name..."
+              className="w-full pl-9 pr-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            {searching && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
           </div>
-        )}
+
+          {searchFocused && searchQuery.trim().length >= 2 && (searchResults.length > 0 || !searching) && (
+            <div className="absolute z-10 left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl shadow-lg overflow-hidden max-h-64 overflow-y-auto">
+              {searchResults.length === 0 && !searching ? (
+                <div className="px-4 py-3 text-sm text-gray-400 text-center">No users found</div>
+              ) : (
+                searchResults.map(profile => {
+                  const connected = alreadyConnected.has(profile.uid);
+                  return (
+                    <div key={profile.uid} className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-sm font-bold text-blue-600 dark:text-blue-400">
+                          {profile.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm text-gray-900 dark:text-white">{profile.name}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {profile.goalCount} goals &middot; {profile.currentStreak}d streak
+                          </p>
+                        </div>
+                      </div>
+                      {connected ? (
+                        <span className="text-xs text-gray-400 px-3 py-1.5">Connected</span>
+                      ) : (
+                        <button
+                          onClick={() => handleSendRequest(profile)}
+                          disabled={sendingTo === profile.uid}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white rounded-lg text-xs font-medium transition-colors"
+                        >
+                          <UserPlus size={12} />
+                          {sendingTo === profile.uid ? '...' : 'Add'}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
+        </div>
 
         {pendingOutgoing.length > 0 && (
           <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">

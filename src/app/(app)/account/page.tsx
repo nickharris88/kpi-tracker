@@ -1,16 +1,47 @@
 'use client';
 
 import { useState } from 'react';
-import { UserCircle, Trash2, LogOut, ShieldCheck } from 'lucide-react';
+import { UserCircle, Trash2, LogOut, ShieldCheck, Bell } from 'lucide-react';
 import { useAppData } from '@/app/providers';
+import { enableReminders, updateReminderTime, disableReminders, isPushSupported } from '@/lib/notifications';
 import Link from 'next/link';
 
 export default function AccountPage() {
-  const { user, data, signOut, deleteAccount } = useAppData();
+  const { user, data, signOut, deleteAccount, updateSettings } = useAppData();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [confirmText, setConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reminderError, setReminderError] = useState<string | null>(null);
+  const [reminderBusy, setReminderBusy] = useState(false);
+
+  const remindersEnabled = data.settings.remindersEnabled || false;
+  const reminderTime = data.settings.reminderTime || '20:00';
+
+  const handleToggleReminders = async () => {
+    if (!user) return;
+    setReminderBusy(true);
+    setReminderError(null);
+    if (remindersEnabled) {
+      await disableReminders(user.uid);
+      updateSettings({ remindersEnabled: false });
+    } else {
+      const err = await enableReminders(user.uid, reminderTime);
+      if (err) {
+        setReminderError(err);
+      } else {
+        updateSettings({ remindersEnabled: true, reminderTime });
+      }
+    }
+    setReminderBusy(false);
+  };
+
+  const handleReminderTimeChange = async (time: string) => {
+    updateSettings({ reminderTime: time });
+    if (user && remindersEnabled) {
+      await updateReminderTime(user.uid, time);
+    }
+  };
 
   const handleDelete = async () => {
     if (confirmText !== 'DELETE') return;
@@ -43,6 +74,53 @@ export default function AccountPage() {
           <p><span className="font-medium text-gray-900 dark:text-white">Days tracked:</span> {Object.keys(data.entries).length}</p>
           <p><span className="font-medium text-gray-900 dark:text-white">Active goals:</span> {data.goals.filter(g => g.active).length}</p>
         </div>
+      </div>
+
+      {/* Daily Reminder */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Bell size={18} className="text-blue-500" />
+            <h2 className="font-semibold text-gray-900 dark:text-white">Daily Reminder</h2>
+          </div>
+          <button
+            onClick={handleToggleReminders}
+            disabled={reminderBusy}
+            role="switch"
+            aria-checked={remindersEnabled}
+            className={`relative w-11 h-6 rounded-full transition-colors disabled:opacity-50 ${
+              remindersEnabled ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                remindersEnabled ? 'translate-x-5' : ''
+              }`}
+            />
+          </button>
+        </div>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          Get a push notification each day so logging becomes automatic. Works best when the app
+          is installed to your home screen.
+        </p>
+        {remindersEnabled && (
+          <div className="flex items-center gap-3">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Remind me at</label>
+            <input
+              type="time"
+              value={reminderTime}
+              onChange={e => handleReminderTimeChange(e.target.value)}
+              className="px-3 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white"
+            />
+          </div>
+        )}
+        {reminderError && <p className="text-sm text-red-500">{reminderError}</p>}
+        {!isPushSupported() && (
+          <p className="text-xs text-amber-600 dark:text-amber-400">
+            Push isn&apos;t available here — this needs a browser with notification support and the
+            app&apos;s push key configured.
+          </p>
+        )}
       </div>
 
       {/* Privacy */}

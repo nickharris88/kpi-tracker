@@ -4,6 +4,7 @@ import { ReactNode } from 'react';
 import Link from 'next/link';
 import { AppProvider, useAppData } from './providers';
 import Navigation from '@/components/Navigation';
+import SocialNotifications from '@/components/SocialNotifications';
 import OfflineBanner from '@/components/OfflineBanner';
 
 function LayoutInner({ children }: { children: ReactNode }) {
@@ -18,6 +19,7 @@ function LayoutInner({ children }: { children: ReactNode }) {
           onSignOut={user ? signOut : undefined}
           showAccount={!!user}
         />
+        <SocialNotifications />
         <main className="flex-1 px-4 py-6">
           {children}
         </main>

@@ -6,7 +6,7 @@ import { RAGLegend } from '@/components/RAGSmiley';
 import { useAppData } from '@/app/providers';
 
 export default function DashboardPage() {
-  const { data, setGoalRating, setDayNotes } = useAppData();
+  const { data, setGoalRating, setDayRatings, setDayNotes } = useAppData();
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -17,9 +17,7 @@ export default function DashboardPage() {
           </h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm">Track your goals and rate your day</p>
         </div>
-        <div className="hidden sm:block">
-          <RAGLegend />
-        </div>
+        <RAGLegend />
       </div>
 
       {/* Mobile: condensed week + streaks above tracker */}
@@ -31,6 +29,7 @@ export default function DashboardPage() {
         <DailyTracker
           data={data}
           onRatingChange={setGoalRating}
+          onBatchRatingChange={setDayRatings}
           onNotesChange={setDayNotes}
         />
         <div className="hidden lg:block">

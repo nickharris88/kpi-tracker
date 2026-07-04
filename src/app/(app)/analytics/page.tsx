@@ -12,6 +12,8 @@ import {
   getDailyScore, getCompletionRate, getConsistencyRate, getWeekOverWeekChange,
   getGoalScoresOverTime, getCategoryScoresOverTime,
 } from '@/lib/storage';
+import { getInsights, getMonthlyRecap } from '@/lib/insights';
+import YearHeatmap from '@/components/YearHeatmap';
 import { useAppData } from '@/app/providers';
 
 type TimeRange = '7d' | '30d' | '90d';
@@ -121,6 +123,9 @@ export default function AnalyticsPage() {
   const bestDay = dailyScores.reduce((best, d) => d.score > best.score ? d : best, dailyScores[0]);
   const daysActive = dailyScores.filter(d => d.score > 0).length;
 
+  const insights = useMemo(() => getInsights(data), [data]);
+  const recap = useMemo(() => getMonthlyRecap(data), [data]);
+
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       {/* Header */}
@@ -144,6 +149,60 @@ export default function AnalyticsPage() {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Insight cards */}
+      {insights.length > 0 && (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {insights.map((insight, i) => (
+            <div
+              key={i}
+              className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30 border border-indigo-100 dark:border-indigo-900/40 rounded-xl p-4"
+            >
+              <div className="flex items-start gap-3">
+                <span className="text-2xl flex-shrink-0">{insight.icon}</span>
+                <div>
+                  <p className="font-semibold text-sm text-gray-900 dark:text-white">{insight.title}</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{insight.detail}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Year heatmap */}
+      <YearHeatmap data={data} />
+
+      {/* Monthly recap */}
+      <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl p-6 text-white shadow-lg">
+        <div className="flex items-center gap-2 mb-4">
+          <Zap size={18} />
+          <h3 className="font-semibold">{recap.monthLabel} in review</h3>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div>
+            <p className="text-3xl font-bold">{recap.daysTracked}</p>
+            <p className="text-blue-100 text-xs">days tracked</p>
+          </div>
+          <div>
+            <p className="text-3xl font-bold">{recap.avgScore}%</p>
+            <p className="text-blue-100 text-xs">average score</p>
+          </div>
+          <div>
+            <p className="text-3xl font-bold">{recap.perfectDays}</p>
+            <p className="text-blue-100 text-xs">perfect days</p>
+          </div>
+          <div>
+            <p className="text-3xl font-bold">{recap.totalGreens}</p>
+            <p className="text-blue-100 text-xs">goals hit</p>
+          </div>
+        </div>
+        {recap.bestGoal && (
+          <p className="text-sm text-blue-100 mt-4">
+            MVP: {recap.bestGoal.icon} <span className="font-semibold text-white">{recap.bestGoal.name}</span> at {recap.bestGoal.rate}% completion
+          </p>
+        )}
       </div>
 
       {/* Summary Cards */}

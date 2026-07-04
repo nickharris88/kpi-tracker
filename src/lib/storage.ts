@@ -1,6 +1,6 @@
 'use client';
 
-import { AppData, DEFAULT_GOALS, DailyEntry, Goal, RAGStatus, isGoalScheduledForDate } from './types';
+import { AppData, DEFAULT_GOALS, DailyEntry, Goal, RAGStatus, isGoalScheduledForDate, isWeeklyGoal } from './types';
 
 const STORAGE_KEY = 'kpi-tracker-data';
 
@@ -46,6 +46,32 @@ export function setRating(data: AppData, date: string, goalId: string, status: R
   const newRatings = { ...entry.ratings, [goalId]: status };
   const newEntry = { ...entry, ratings: newRatings, ratedAt: entry.ratedAt || new Date().toISOString() };
   return { ...data, entries: { ...data.entries, [date]: newEntry } };
+}
+
+// Batch-set ratings for multiple goals in one update (quick log)
+export function setMultipleRatings(data: AppData, date: string, ratings: Record<string, RAGStatus>): AppData {
+  const entry = getEntry(data, date);
+  const newEntry = {
+    ...entry,
+    ratings: { ...entry.ratings, ...ratings },
+    ratedAt: entry.ratedAt || new Date().toISOString(),
+  };
+  return { ...data, entries: { ...data.entries, [date]: newEntry } };
+}
+
+// Days since the user last rated anything — null if no entries at all
+export function getDaysSinceLastEntry(data: AppData): number | null {
+  const dates = Object.keys(data.entries)
+    .filter(d => {
+      const e = data.entries[d];
+      return e && Object.values(e.ratings).some(r => r);
+    })
+    .sort();
+  if (dates.length === 0) return null;
+  const last = new Date(dates[dates.length - 1] + 'T00:00:00');
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((today.getTime() - last.getTime()) / 86400000);
 }
 
 export function setNotes(data: AppData, date: string, notes: string): AppData {
@@ -195,25 +221,124 @@ export function generateShareSummary(data: AppData): {
   return { overallScore, streak, topGoals, consistency, totalGoals: activeGoals.length, daysTracked };
 }
 
+// --- Week helpers (Monday-start weeks) ---
+
+function getWeekStart(d: Date): Date {
+  const date = new Date(d);
+  const daysSinceMonday = (date.getDay() + 6) % 7;
+  date.setDate(date.getDate() - daysSinceMonday);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+// How many greens a goal has in the week containing dateInWeek
+export function getWeeklyGreenCount(data: AppData, goalId: string, dateInWeek: Date): number {
+  const start = getWeekStart(dateInWeek);
+  let count = 0;
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start);
+    d.setDate(d.getDate() + i);
+    const ds = d.toISOString().split('T')[0];
+    if (data.entries[ds]?.ratings[goalId] === 'green') count++;
+  }
+  return count;
+}
+
+// Weekly goal progress for display: { count, target }
+export function getWeeklyProgress(data: AppData, goal: Goal, dateInWeek: Date): { count: number; target: number } {
+  return {
+    count: getWeeklyGreenCount(data, goal.id, dateInWeek),
+    target: goal.weeklyTarget || 3,
+  };
+}
+
+// Consecutive weeks (including current if already met) hitting the weekly target
+function getWeeklyStreakForGoal(data: AppData, goal: Goal): number {
+  const target = goal.weeklyTarget || 3;
+  const thisWeek = getWeekStart(new Date());
+  let streak = 0;
+  // Current week counts if met; if still in progress it doesn't break the streak
+  if (getWeeklyGreenCount(data, goal.id, thisWeek) >= target) streak++;
+  for (let w = 1; w < 104; w++) {
+    const d = new Date(thisWeek);
+    d.setDate(d.getDate() - 7 * w);
+    if (getWeeklyGreenCount(data, goal.id, d) >= target) streak++;
+    else break;
+  }
+  return streak;
+}
+
 // Analytics helpers
+// Streaks are forgiving: a single missed scheduled day is auto-frozen and won't
+// break an ongoing streak — two consecutive misses will. Today unrated never breaks.
+// Weekly goals count consecutive weeks hitting their target instead of days.
 export function getStreakForGoal(data: AppData, goalId: string): number {
   const goal = data.goals.find(g => g.id === goalId);
+  if (goal && isWeeklyGoal(goal)) return getWeeklyStreakForGoal(data, goal);
+
   const today = new Date();
   let streak = 0;
+  let consecutiveMisses = 0;
   for (let i = 0; i < 365; i++) {
     const d = new Date(today);
     d.setDate(d.getDate() - i);
     // Skip days the goal is not scheduled for
     if (goal && !isGoalScheduledForDate(goal, d)) continue;
     const dateStr = d.toISOString().split('T')[0];
-    const entry = data.entries[dateStr];
-    if (entry?.ratings[goalId] === 'green') {
+    const rating = data.entries[dateStr]?.ratings[goalId];
+    if (rating === 'green') {
       streak++;
+      consecutiveMisses = 0;
+    } else if (i === 0 && !rating) {
+      // Today not rated yet — day still in progress, doesn't break the streak
+      continue;
     } else {
-      break;
+      consecutiveMisses++;
+      // Streak freeze only protects an ongoing streak; it can't start one
+      if (consecutiveMisses >= 2 || streak === 0) break;
     }
   }
   return streak;
+}
+
+// Best streak the goal has ever had (scans full history)
+export function getBestStreakForGoal(data: AppData, goalId: string): number {
+  const goal = data.goals.find(g => g.id === goalId);
+  const dates = Object.keys(data.entries).sort();
+  if (dates.length === 0) return 0;
+  const current = getStreakForGoal(data, goalId);
+
+  if (goal && isWeeklyGoal(goal)) {
+    const target = goal.weeklyTarget || 3;
+    let best = 0, run = 0;
+    const firstWeek = getWeekStart(new Date(dates[0] + 'T00:00:00'));
+    const lastWeek = getWeekStart(new Date());
+    for (const w = new Date(firstWeek); w <= lastWeek; w.setDate(w.getDate() + 7)) {
+      if (getWeeklyGreenCount(data, goalId, w) >= target) {
+        run++;
+        if (run > best) best = run;
+      } else {
+        run = 0;
+      }
+    }
+    return Math.max(best, current);
+  }
+
+  let best = 0, run = 0;
+  const start = new Date(dates[0] + 'T00:00:00');
+  const today = new Date();
+  for (const d = new Date(start); d <= today; d.setDate(d.getDate() + 1)) {
+    if (goal && !isGoalScheduledForDate(goal, d)) continue;
+    const ds = d.toISOString().split('T')[0];
+    if (data.entries[ds]?.ratings[goalId] === 'green') {
+      run++;
+      if (run > best) best = run;
+    } else {
+      run = 0;
+    }
+  }
+  // Current streak can exceed strict-best thanks to streak freezes
+  return Math.max(best, current);
 }
 
 export function getCompletionRate(data: AppData, goalId: string, days: number): number {
@@ -240,13 +365,18 @@ export function getDailyScore(data: AppData, date: string): number {
   const entry = data.entries[date];
   if (!entry) return 0;
   const dateObj = new Date(date + 'T00:00:00');
-  const activeGoals = data.goals.filter(g => g.active && isGoalScheduledForDate(g, dateObj));
-  if (activeGoals.length === 0) return 0;
+  const scoreGoals = data.goals.filter(g => {
+    if (!g.active) return false;
+    // Weekly goals only count toward the day's score when actually logged that day
+    if (isWeeklyGoal(g)) return !!entry.ratings[g.id];
+    return isGoalScheduledForDate(g, dateObj);
+  });
+  if (scoreGoals.length === 0) return 0;
   let score = 0;
-  for (const goal of activeGoals) {
+  for (const goal of scoreGoals) {
     const rating = entry.ratings[goal.id];
     if (rating === 'green') score += 100;
     else if (rating === 'amber') score += 50;
   }
-  return Math.round(score / activeGoals.length);
+  return Math.round(score / scoreGoals.length);
 }

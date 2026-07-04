@@ -3,15 +3,16 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { format, addDays, subDays, isToday, isFuture } from 'date-fns';
 import { ChevronLeft, ChevronRight, Calendar, MessageSquare, Flame, Trophy, X } from 'lucide-react';
-import { AppData, RAGStatus, CATEGORY_COLORS, CATEGORY_LABELS, isGoalScheduledForDate } from '@/lib/types';
-import { getEntry, getDailyScore, getStreakForGoal } from '@/lib/storage';
-import { checkBadges, Badge } from '@/lib/badges';
+import { AppData, RAGStatus, CATEGORY_COLORS, CATEGORY_LABELS, isGoalScheduledForDate, isWeeklyGoal } from '@/lib/types';
+import { getEntry, getDailyScore, getStreakForGoal, getWeeklyProgress } from '@/lib/storage';
+import { BADGE_DEFINITIONS, Badge } from '@/lib/badges';
 import { CalendarDays } from 'lucide-react';
 import RAGSmiley from './RAGSmiley';
 
 interface DailyTrackerProps {
   data: AppData;
   onRatingChange: (date: string, goalId: string, status: RAGStatus) => void;
+  onBatchRatingChange: (date: string, ratings: Record<string, RAGStatus>) => void;
   onNotesChange: (date: string, notes: string) => void;
 }
 
@@ -22,7 +23,7 @@ function BadgeToast({ badge, onClose }: { badge: Badge; onClose: () => void }) {
   }, [onClose]);
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-bounce-in">
+    <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 animate-bounce-in">
       <div className="bg-gradient-to-r from-amber-500 via-yellow-500 to-orange-500 rounded-2xl px-6 py-4 shadow-2xl shadow-amber-500/30 flex items-center gap-4 min-w-[300px] max-w-md">
         <span className="text-4xl">{badge.icon}</span>
         <div className="flex-1 min-w-0">
@@ -41,9 +42,9 @@ function BadgeToast({ badge, onClose }: { badge: Badge; onClose: () => void }) {
   );
 }
 
-export default function DailyTracker({ data, onRatingChange, onNotesChange }: DailyTrackerProps) {
+export default function DailyTracker({ data, onRatingChange, onBatchRatingChange, onNotesChange }: DailyTrackerProps) {
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [showNotes, setShowNotes] = useState(false);
+  const [showNotes, setShowNotes] = useState(true);
   const [badgeToast, setBadgeToast] = useState<Badge | null>(null);
   const prevBadgesRef = useRef<Set<string>>(new Set());
   const dateStr = format(selectedDate, 'yyyy-MM-dd');
@@ -53,12 +54,14 @@ export default function DailyTracker({ data, onRatingChange, onNotesChange }: Da
   const activeGoals = allActiveGoals.filter(g => isGoalScheduledForDate(g, selectedDate));
   const hiddenCount = allActiveGoals.length - activeGoals.length;
 
-  // Check for newly earned badges when data changes
+  // Detect newly earned badges from persisted data.badges (avoids expensive recalculation)
   const dismissToast = useCallback(() => setBadgeToast(null), []);
 
   useEffect(() => {
-    const badges = checkBadges(data);
-    const earnedIds = new Set(badges.filter(b => b.earned).map(b => b.id));
+    if (!data.badges) return;
+    const earnedIds = new Set(
+      Object.entries(data.badges).filter(([, v]) => v.earned).map(([k]) => k)
+    );
 
     // On first render, just capture the current state
     if (prevBadgesRef.current.size === 0 && earnedIds.size > 0) {
@@ -66,16 +69,17 @@ export default function DailyTracker({ data, onRatingChange, onNotesChange }: Da
       return;
     }
 
-    // Find newly earned badges
-    for (const badge of badges) {
-      if (badge.earned && !prevBadgesRef.current.has(badge.id)) {
-        setBadgeToast(badge);
-        break; // Show one at a time
+    // Find newly earned badge
+    const newBadge = Array.from(earnedIds).find(id => !prevBadgesRef.current.has(id));
+    if (newBadge) {
+      const def = BADGE_DEFINITIONS.find(b => b.id === newBadge);
+      if (def) {
+        setBadgeToast({ ...def, earned: true, earnedDate: data.badges![newBadge].earnedDate });
       }
     }
 
     prevBadgesRef.current = earnedIds;
-  }, [data]);
+  }, [data.badges]);
 
   // Group goals by category
   const groupedGoals = activeGoals.reduce((acc, goal) => {
@@ -93,6 +97,13 @@ export default function DailyTracker({ data, onRatingChange, onNotesChange }: Da
 
   const completedCount = activeGoals.filter(g => entry.ratings[g.id] === 'green').length;
   const ratedCount = activeGoals.filter(g => entry.ratings[g.id]).length;
+  const unratedGoals = activeGoals.filter(g => !entry.ratings[g.id]);
+
+  const handleAllGreen = () => {
+    const ratings: Record<string, RAGStatus> = {};
+    for (const g of unratedGoals) ratings[g.id] = 'green';
+    onBatchRatingChange(dateStr, ratings);
+  };
 
   return (
     <div className="space-y-6">
@@ -143,13 +154,29 @@ export default function DailyTracker({ data, onRatingChange, onNotesChange }: Da
             <p className="text-blue-100 mt-1">
               {completedCount}/{activeGoals.length} goals achieved &middot; {ratedCount}/{activeGoals.length} rated
             </p>
+            {unratedGoals.length > 0 && !isFuture(selectedDate) && (
+              <button
+                onClick={handleAllGreen}
+                className="mt-3 inline-flex items-center gap-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+              >
+                ✅ Mark {ratedCount > 0 ? 'the rest' : 'all'} green
+              </button>
+            )}
           </div>
-          <div className="text-right">
-            <div className="w-24 h-24 rounded-full border-4 border-white/30 flex items-center justify-center">
-              <span className={`text-4xl font-bold ${score >= 80 ? 'text-white' : score >= 50 ? 'text-yellow-200' : 'text-red-200'}`}>
-                {score > 0 ? (score >= 80 ? '😄' : score >= 50 ? '😐' : '😞') : '⚪'}
-              </span>
-            </div>
+          <div className="relative w-24 h-24 flex-shrink-0">
+            <svg viewBox="0 0 96 96" className="w-24 h-24 -rotate-90">
+              <circle cx="48" cy="48" r="42" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="7" />
+              <circle
+                cx="48" cy="48" r="42" fill="none"
+                stroke="white" strokeWidth="7" strokeLinecap="round"
+                strokeDasharray={2 * Math.PI * 42}
+                strokeDashoffset={2 * Math.PI * 42 * (1 - score / 100)}
+                className="transition-all duration-700 ease-out"
+              />
+            </svg>
+            <span className="absolute inset-0 flex items-center justify-center text-3xl">
+              {score > 0 ? (score >= 80 ? '😄' : score >= 50 ? '😐' : '😞') : '⚪'}
+            </span>
           </div>
         </div>
       </div>
@@ -170,6 +197,7 @@ export default function DailyTracker({ data, onRatingChange, onNotesChange }: Da
           <div className="grid gap-3">
             {goals.map(goal => {
               const streak = getStreakForGoal(data, goal.id);
+              const weekly = isWeeklyGoal(goal) ? getWeeklyProgress(data, goal, selectedDate) : null;
               return (
                 <div
                   key={goal.id}
@@ -184,10 +212,19 @@ export default function DailyTracker({ data, onRatingChange, onNotesChange }: Da
                   </div>
 
                   <div className="flex items-center gap-2 flex-shrink-0">
+                    {weekly && (
+                      <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                        weekly.count >= weekly.target
+                          ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                      }`}>
+                        {weekly.count}/{weekly.target} wk
+                      </span>
+                    )}
                     {streak > 0 && (
                       <div className="flex items-center gap-1 text-orange-500 text-sm font-medium">
                         <Flame size={14} />
-                        {streak}
+                        {streak}{weekly ? 'w' : ''}
                       </div>
                     )}
                     <RAGSmiley

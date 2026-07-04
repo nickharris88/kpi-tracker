@@ -3,7 +3,7 @@ export type RAGStatus = 'red' | 'amber' | 'green' | null;
 export type AgeRange = '13-17' | '18-24' | '25-34' | '35-44' | '45-54' | '55-64' | '65+' | 'prefer-not-to-say';
 export type Gender = 'male' | 'female' | 'non-binary' | 'prefer-not-to-say';
 
-export type GoalSchedule = 'daily' | 'weekdays' | 'weekends' | 'custom';
+export type GoalSchedule = 'daily' | 'weekdays' | 'weekends' | 'custom' | 'weekly';
 
 export interface UserProfile {
   name: string;
@@ -23,6 +23,7 @@ export interface Goal {
   createdAt: string;
   schedule?: GoalSchedule;
   scheduleDays?: number[]; // 0=Sun, 1=Mon, ... 6=Sat — used when schedule is 'custom'
+  weeklyTarget?: number; // times per week (1-7) — used when schedule is 'weekly'
 }
 
 /** Day labels for schedule display (index matches JS getDay: 0=Sun) */
@@ -33,6 +34,7 @@ export const DAY_LABELS_SINGLE = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 export function isGoalScheduledForDate(goal: Goal, date: Date): boolean {
   const schedule = goal.schedule || 'daily';
   if (schedule === 'daily') return true;
+  if (schedule === 'weekly') return true; // weekly goals can be logged any day
   const day = date.getDay(); // 0=Sun ... 6=Sat
   if (schedule === 'weekdays') return day >= 1 && day <= 5;
   if (schedule === 'weekends') return day === 0 || day === 6;
@@ -41,10 +43,16 @@ export function isGoalScheduledForDate(goal: Goal, date: Date): boolean {
   return days.includes(day);
 }
 
+/** Returns true if a goal uses weekly-frequency tracking */
+export function isWeeklyGoal(goal: Goal): boolean {
+  return goal.schedule === 'weekly';
+}
+
 /** Returns a human-readable label for a goal's schedule */
 export function getScheduleLabel(goal: Goal): string {
   const schedule = goal.schedule || 'daily';
   if (schedule === 'daily') return 'Daily';
+  if (schedule === 'weekly') return `${goal.weeklyTarget || 3}× per week`;
   if (schedule === 'weekdays') return 'Weekdays';
   if (schedule === 'weekends') return 'Weekends';
   const days = goal.scheduleDays || [];
@@ -88,6 +96,9 @@ export interface AppData {
     target5kTime: number; // seconds (20 min = 1200)
     runTargetDistance?: number; // km, defaults to 5
     runTargetLabel?: string; // e.g. "5K", "10K", defaults to "5K"
+    freshStartDate?: string; // YYYY-MM-DD — set when user completes a welcome-back reset
+    remindersEnabled?: boolean;
+    reminderTime?: string; // HH:mm local time for daily reminder
   };
   badges?: Record<string, { earned: boolean; earnedDate: string }>;
   sharing?: SharingConfig;

@@ -40,7 +40,7 @@ export default function RunTrackerPage() {
     if (totalSeconds <= 0) return;
 
     setRunData(newRun.date, totalSeconds, distance);
-    setNewRun({ date: format(new Date(), 'yyyy-MM-dd'), minutes: '', seconds: '', distance: '5' });
+    setNewRun({ date: format(new Date(), 'yyyy-MM-dd'), minutes: '', seconds: '', distance: String(targetDistance) });
     setShowAdd(false);
   };
 

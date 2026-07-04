@@ -2,7 +2,7 @@
 
 import {
   doc, collection, query, where, getDocs, addDoc, updateDoc,
-  setDoc, deleteDoc, onSnapshot, Unsubscribe, orderBy, limit,
+  setDoc, deleteDoc, onSnapshot, Unsubscribe,
 } from 'firebase/firestore';
 import { getDbInstance } from './firebase';
 import { AppData, PublicProfile, Friendship, FriendData, Cheer } from './types';
@@ -173,14 +173,17 @@ export async function sendCheer(cheer: Omit<Cheer, 'id'>): Promise<void> {
 }
 
 export function subscribeCheers(uid: string, callback: (cheers: Cheer[]) => void): Unsubscribe {
+  // Use simple where-only query to avoid needing a composite Firestore index
   const q = query(
     collection(getDbInstance(), 'cheers'),
-    where('toUid', '==', uid),
-    orderBy('createdAt', 'desc'),
-    limit(50)
+    where('toUid', '==', uid)
   );
   return onSnapshot(q, (snap) => {
-    callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as Cheer)));
+    const cheers = snap.docs
+      .map(d => ({ id: d.id, ...d.data() } as Cheer))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, 50);
+    callback(cheers);
   }, (err) => {
     console.error('Error subscribing to cheers:', err);
   });
@@ -188,15 +191,17 @@ export function subscribeCheers(uid: string, callback: (cheers: Cheer[]) => void
 
 export async function getCheersForFriend(fromUid: string, toUid: string): Promise<Cheer[]> {
   try {
+    // Simple query without orderBy to avoid composite index requirement
     const q = query(
       collection(getDbInstance(), 'cheers'),
       where('fromUid', '==', fromUid),
-      where('toUid', '==', toUid),
-      orderBy('createdAt', 'desc'),
-      limit(20)
+      where('toUid', '==', toUid)
     );
     const snap = await getDocs(q);
-    return snap.docs.map(d => ({ id: d.id, ...d.data() } as Cheer));
+    return snap.docs
+      .map(d => ({ id: d.id, ...d.data() } as Cheer))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, 20);
   } catch (err) {
     console.error('Error loading cheers:', err);
     return [];

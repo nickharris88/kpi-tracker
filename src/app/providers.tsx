@@ -8,12 +8,13 @@ import { AppData, RAGStatus, Goal, UserProfile, SharingConfig } from '@/lib/type
 import { loadUserData, saveUserData, subscribeToUserData, deleteUserAccount } from '@/lib/firestore-storage';
 import { syncProfile, syncFriendData, deleteSocialData } from '@/lib/social';
 import {
-  loadData, saveData, setRating, setNotes, setRunData as setRunDataHelper,
+  loadData, saveData, setRating, setMultipleRatings, setNotes, setRunData as setRunDataHelper,
   addGoal as addGoalHelper, updateGoal as updateGoalHelper, removeGoal as removeGoalHelper,
-  toggleDarkMode as toggleDarkModeHelper,
+  toggleDarkMode as toggleDarkModeHelper, getDaysSinceLastEntry,
 } from '@/lib/storage';
 import { checkBadges } from '@/lib/badges';
 import Onboarding from '@/components/Onboarding';
+import WelcomeBack from '@/components/WelcomeBack';
 
 interface AppContextType {
   data: AppData;
@@ -22,6 +23,7 @@ interface AppContextType {
   signInWithEmail: (email: string, password: string, isNew: boolean) => Promise<string | null>;
   signOut: () => Promise<void>;
   setGoalRating: (date: string, goalId: string, status: RAGStatus) => void;
+  setDayRatings: (date: string, ratings: Record<string, RAGStatus>) => void;
   setDayNotes: (date: string, notes: string) => void;
   setRunData: (date: string, runTime?: number, runDistance?: number) => void;
   addGoal: (goal: Omit<Goal, 'id' | 'order' | 'createdAt'>) => void;
@@ -239,7 +241,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // Try loading from Firestore
         const firestoreData = await loadUserData(u.uid);
         if (firestoreData) {
+          // Sync dark mode preference from pre-login setting on first load
+          const storedDarkMode = localStorage.getItem('kpi-dark-mode');
+          if (storedDarkMode === 'true' && !firestoreData.settings.darkMode) {
+            firestoreData.settings.darkMode = true;
+            saveUserData(u.uid, firestoreData);
+          }
           setData(firestoreData);
+          syncProfile(u.uid, firestoreData);
+          syncFriendData(u.uid, firestoreData);
         } else {
           // Check for existing localStorage data to migrate
           const localData = loadData();
@@ -256,6 +266,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
             };
             await saveUserData(u.uid, migrated);
             setData(migrated);
+            syncProfile(u.uid, migrated);
+            syncFriendData(u.uid, migrated);
           } else {
             // Brand new user
             setData(getDefaultData());
@@ -360,6 +372,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const handleDeleteAccount = useCallback(async () => {
     if (!user) return;
     const shareCode = data?.sharing?.shareCode;
+    const { disableReminders } = await import('@/lib/notifications');
+    await disableReminders(user.uid);
     await deleteSocialData(user.uid);
     await deleteUserAccount(user.uid, shareCode);
     setData(getDefaultData());
@@ -404,21 +418,48 @@ export function AppProvider({ children }: { children: ReactNode }) {
     );
   }
 
+  // Welcome-back flow: 7+ days away triggers a guilt-free fresh start screen
+  const daysAway = getDaysSinceLastEntry(data);
+  const freshStartAge = data.settings.freshStartDate
+    ? Math.round((Date.now() - new Date(data.settings.freshStartDate + 'T00:00:00').getTime()) / 86400000)
+    : null;
+  const showWelcomeBack =
+    daysAway !== null && daysAway >= 7 && (freshStartAge === null || freshStartAge >= 7);
+
+  if (showWelcomeBack) {
+    const handleWelcomeBack = (keptGoalIds: string[]) => {
+      const keptSet = new Set(keptGoalIds);
+      const today = new Date().toISOString().split('T')[0];
+      persist({
+        ...data,
+        goals: data.goals.map(g => (g.active && !keptSet.has(g.id) ? { ...g, active: false } : g)),
+        settings: { ...data.settings, freshStartDate: today },
+      });
+    };
+    return (
+      <div className={data.settings.darkMode ? 'dark' : ''}>
+        <WelcomeBack data={data} daysAway={daysAway} onComplete={handleWelcomeBack} />
+      </div>
+    );
+  }
+
+  const persistWithBadges = (newData: AppData, date: string) => {
+    const badges = checkBadges(newData);
+    const earnedBadges: Record<string, { earned: boolean; earnedDate: string }> = {};
+    for (const b of badges) {
+      if (b.earned) earnedBadges[b.id] = { earned: true, earnedDate: b.earnedDate || date };
+    }
+    persist({ ...newData, badges: { ...newData.badges, ...earnedBadges } });
+  };
+
   const ctx: AppContextType = {
     data,
     user,
     signIn,
     signInWithEmail,
     signOut: handleSignOut,
-    setGoalRating: (date, goalId, status) => {
-      const newData = setRating(data, date, goalId, status);
-      const badges = checkBadges(newData);
-      const earnedBadges: Record<string, { earned: boolean; earnedDate: string }> = {};
-      for (const b of badges) {
-        if (b.earned) earnedBadges[b.id] = { earned: true, earnedDate: b.earnedDate || date };
-      }
-      persist({ ...newData, badges: { ...newData.badges, ...earnedBadges } });
-    },
+    setGoalRating: (date, goalId, status) => persistWithBadges(setRating(data, date, goalId, status), date),
+    setDayRatings: (date, ratings) => persistWithBadges(setMultipleRatings(data, date, ratings), date),
     setDayNotes: (date, notes) => persist(setNotes(data, date, notes)),
     setRunData: (date, runTime, runDistance) => persist(setRunDataHelper(data, date, runTime, runDistance)),
     addGoal: (goal) => persist(addGoalHelper(data, goal)),

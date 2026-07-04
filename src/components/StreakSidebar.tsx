@@ -2,8 +2,8 @@
 
 import { format, subDays } from 'date-fns';
 import { Flame, Trophy, TrendingUp, Calendar } from 'lucide-react';
-import { AppData } from '@/lib/types';
-import { getStreakForGoal, getCompletionRate, getDailyScore } from '@/lib/storage';
+import { AppData, isWeeklyGoal } from '@/lib/types';
+import { getStreakForGoal, getBestStreakForGoal, getCompletionRate, getDailyScore } from '@/lib/storage';
 
 interface StreakSidebarProps {
   data: AppData;
@@ -17,6 +17,8 @@ export default function StreakSidebar({ data, compact = false }: StreakSidebarPr
   const streaks = activeGoals.map(g => ({
     goal: g,
     streak: getStreakForGoal(data, g.id),
+    best: getBestStreakForGoal(data, g.id),
+    unit: isWeeklyGoal(g) ? 'w' : 'd',
     rate7: getCompletionRate(data, g.id, 7),
     rate30: getCompletionRate(data, g.id, 30),
   })).sort((a, b) => b.streak - a.streak);
@@ -72,14 +74,14 @@ export default function StreakSidebar({ data, compact = false }: StreakSidebarPr
         {/* Top Streaks — inline */}
         {topStreaks.length > 0 && (
           <div className="flex flex-wrap gap-2">
-            {topStreaks.map(({ goal, streak }) => (
+            {topStreaks.map(({ goal, streak, unit }) => (
               <div
                 key={goal.id}
                 className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg px-2.5 py-1.5"
               >
                 <span className="text-sm">{goal.icon}</span>
                 <Flame size={12} className="text-orange-500" />
-                <span className="text-xs font-bold text-orange-500">{streak}d</span>
+                <span className="text-xs font-bold text-orange-500">{streak}{unit}</span>
               </div>
             ))}
           </div>
@@ -128,20 +130,25 @@ export default function StreakSidebar({ data, compact = false }: StreakSidebarPr
           <h3 className="font-semibold text-gray-900 dark:text-white text-sm">Current Streaks</h3>
         </div>
         <div className="space-y-2">
-          {streaks.slice(0, 5).map(({ goal, streak }) => (
+          {streaks.slice(0, 5).map(({ goal, streak, best, unit }) => (
             <div key={goal.id} className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-sm">{goal.icon}</span>
                 <span className="text-sm text-gray-700 dark:text-gray-300">{goal.name}</span>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5">
                 {streak > 0 ? (
                   <>
                     <Flame size={12} className="text-orange-500" />
-                    <span className="text-sm font-bold text-orange-500">{streak}d</span>
+                    <span className="text-sm font-bold text-orange-500">{streak}{unit}</span>
                   </>
                 ) : (
                   <span className="text-xs text-gray-400">—</span>
+                )}
+                {best > 0 && (
+                  <span className="text-[10px] text-gray-400" title="Best ever">
+                    🏆 {best}{unit}
+                  </span>
                 )}
               </div>
             </div>

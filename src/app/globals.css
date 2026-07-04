@@ -10,6 +10,11 @@ body {
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
+/* Safe area for bottom tab bar on iPhone */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

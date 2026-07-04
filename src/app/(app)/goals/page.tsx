@@ -23,6 +23,7 @@ export default function GoalsPage() {
     active: true,
     schedule: 'daily' as GoalSchedule,
     scheduleDays: [] as number[],
+    weeklyTarget: 3,
   });
 
   const existingGoalIds = new Set(data.goals.map(g => g.id));
@@ -39,7 +40,7 @@ export default function GoalsPage() {
   const handleAdd = () => {
     if (!newGoal.name.trim()) return;
     addGoal(newGoal);
-    setNewGoal({ name: '', category: 'custom', icon: '🎯', target: '', active: true, schedule: 'daily', scheduleDays: [] });
+    setNewGoal({ name: '', category: 'custom', icon: '🎯', target: '', active: true, schedule: 'daily', scheduleDays: [], weeklyTarget: 3 });
     setShowAdd(false);
   };
 
@@ -139,8 +140,10 @@ export default function GoalsPage() {
             <SchedulePicker
               schedule={newGoal.schedule}
               scheduleDays={newGoal.scheduleDays}
+              weeklyTarget={newGoal.weeklyTarget}
               onScheduleChange={(schedule) => setNewGoal({ ...newGoal, schedule })}
               onScheduleDaysChange={(scheduleDays) => setNewGoal({ ...newGoal, scheduleDays })}
+              onWeeklyTargetChange={(weeklyTarget) => setNewGoal({ ...newGoal, weeklyTarget })}
             />
           </div>
 
@@ -352,19 +355,24 @@ const SCHEDULE_PRESETS: { value: GoalSchedule; label: string }[] = [
   { value: 'daily', label: 'Daily' },
   { value: 'weekdays', label: 'Weekdays' },
   { value: 'weekends', label: 'Weekends' },
+  { value: 'weekly', label: 'Per week' },
   { value: 'custom', label: 'Custom' },
 ];
 
 function SchedulePicker({
   schedule,
   scheduleDays,
+  weeklyTarget,
   onScheduleChange,
   onScheduleDaysChange,
+  onWeeklyTargetChange,
 }: {
   schedule: GoalSchedule;
   scheduleDays: number[];
+  weeklyTarget: number;
   onScheduleChange: (s: GoalSchedule) => void;
   onScheduleDaysChange: (d: number[]) => void;
+  onWeeklyTargetChange: (n: number) => void;
 }) {
   const toggleDay = (day: number) => {
     if (scheduleDays.includes(day)) {
@@ -410,6 +418,28 @@ function SchedulePicker({
           ))}
         </div>
       )}
+      {schedule === 'weekly' && (
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-500 dark:text-gray-400">Hit it</span>
+          <div className="flex gap-1">
+            {[1, 2, 3, 4, 5, 6, 7].map(n => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => onWeeklyTargetChange(n)}
+                className={`w-9 h-9 rounded-lg text-sm font-semibold transition-colors ${
+                  weeklyTarget === n
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+          <span className="text-sm text-gray-500 dark:text-gray-400">×/week</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -435,6 +465,7 @@ function GoalRow({
   const [editTarget, setEditTarget] = useState(goal.target || '');
   const [editSchedule, setEditSchedule] = useState<GoalSchedule>(goal.schedule || 'daily');
   const [editScheduleDays, setEditScheduleDays] = useState<number[]>(goal.scheduleDays || []);
+  const [editWeeklyTarget, setEditWeeklyTarget] = useState<number>(goal.weeklyTarget || 3);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   if (isEditing) {
@@ -461,8 +492,10 @@ function GoalRow({
           <SchedulePicker
             schedule={editSchedule}
             scheduleDays={editScheduleDays}
+            weeklyTarget={editWeeklyTarget}
             onScheduleChange={setEditSchedule}
             onScheduleDaysChange={setEditScheduleDays}
+            onWeeklyTargetChange={setEditWeeklyTarget}
           />
         </div>
         <div className="flex gap-2 justify-end">
@@ -475,6 +508,7 @@ function GoalRow({
               target: editTarget,
               schedule: editSchedule,
               scheduleDays: editSchedule === 'custom' ? editScheduleDays : undefined,
+              weeklyTarget: editSchedule === 'weekly' ? editWeeklyTarget : undefined,
             })}
             className="p-1 text-emerald-500 hover:text-emerald-600"
           >
