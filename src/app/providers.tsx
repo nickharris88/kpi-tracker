@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { Moon, Sun } from 'lucide-react';
-import { onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, User } from 'firebase/auth';
+import { onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, User } from 'firebase/auth';
 import { getAuthInstance, getGoogleProvider, isFirebaseConfigured } from '@/lib/firebase';
 import { AppData, RAGStatus, Goal, UserProfile, SharingConfig } from '@/lib/types';
 import { loadUserData, saveUserData, subscribeToUserData, deleteUserAccount } from '@/lib/firestore-storage';
@@ -84,6 +84,7 @@ function LoginScreen({
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [resetMsg, setResetMsg] = useState<string | null>(null);
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,6 +93,27 @@ function LoginScreen({
     const err = await onEmailSignIn(email, password, isNewAccount);
     if (err) setError(err);
     setLoading(false);
+  };
+
+  const handleForgotPassword = async () => {
+    setError(null);
+    setResetMsg(null);
+    if (!email.trim()) {
+      setError('Enter your email above first, then tap "Forgot password?".');
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(getAuthInstance(), email.trim());
+      setResetMsg(`Reset link sent to ${email.trim()}. Check your inbox (and spam folder).`);
+    } catch (err: unknown) {
+      const code = (err as { code?: string }).code;
+      if (code === 'auth/invalid-email') {
+        setError('Please enter a valid email address.');
+      } else {
+        // Don't reveal whether the account exists
+        setResetMsg(`If an account exists for ${email.trim()}, a reset link has been sent.`);
+      }
+    }
   };
 
   return (
@@ -159,7 +181,19 @@ function LoginScreen({
                 placeholder="Min. 6 characters"
               />
             </div>
+            {!isNewAccount && (
+              <div className="text-right">
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  className="text-sm text-indigo-500 hover:text-indigo-600 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors"
+                >
+                  Forgot password?
+                </button>
+              </div>
+            )}
             {error && <p className="text-sm text-red-500">{error}</p>}
+            {resetMsg && <p className="text-sm text-emerald-600 dark:text-emerald-400">{resetMsg}</p>}
             <button
               type="submit"
               disabled={loading}
@@ -169,7 +203,7 @@ function LoginScreen({
             </button>
             <button
               type="button"
-              onClick={() => { setMode('choose'); setError(null); }}
+              onClick={() => { setMode('choose'); setError(null); setResetMsg(null); }}
               className="w-full text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors text-center"
             >
               ← Back
